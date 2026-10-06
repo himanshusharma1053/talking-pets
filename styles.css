@@ -1,0 +1,286 @@
+:root {
+  --ink: #3b2b28;
+  --paper: #fff8ec;
+  --wall: #bfe6e0;
+  --wall-light: #e6f6f1;
+  --floor: #f2c489;
+  --floor-dark: #dba466;
+  --accent: #ff7a59;
+  font-family: ui-rounded, "Segoe UI Rounded", "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--paper);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+[hidden] { display: none !important; }
+
+.screen {
+  height: 100dvh;
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
+/* ---------- Pet picker ---------- */
+
+.picker {
+  overflow-y: auto;
+  text-align: center;
+}
+
+.picker h1 {
+  margin: 12px 0 4px;
+  font-size: clamp(2rem, 9vw, 2.8rem);
+  letter-spacing: -0.02em;
+}
+
+.lead { margin: 0 0 20px; font-size: 1.05rem; }
+.fine { margin: 20px 0 0; font-size: 0.85rem; opacity: 0.7; }
+
+.pet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.pet-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 10px 16px;
+  border: 3px solid var(--ink);
+  border-radius: 22px;
+  background: var(--card, #fff);
+  box-shadow: 0 5px 0 var(--ink);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.pet-card:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--ink);
+}
+
+.pet-card .pet { height: 150px; pointer-events: none; }
+.pet-card strong { font-size: 1.25rem; margin-top: 6px; }
+.pet-card small { font-size: 0.85rem; opacity: 0.8; }
+
+/* ---------- Stage ---------- */
+
+.stage {
+  position: relative;
+  max-width: none;
+  background:
+    linear-gradient(to bottom, var(--wall-light), var(--wall) 68%, var(--ink) 68%, var(--ink) calc(68% + 4px), var(--floor) calc(68% + 4px), var(--floor-dark));
+  transition: filter 0.6s;
+}
+
+.stage[data-state="sleeping"] { filter: brightness(0.55) saturate(0.8) hue-rotate(-12deg); }
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.top h2 { margin: 0; font-size: 1.4rem; }
+.chip-spacer { width: 78px; }
+
+.chip {
+  min-width: 78px;
+  padding: 8px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 700;
+}
+
+.status {
+  align-self: center;
+  min-height: 2.4em;
+  margin: 14px 0 0;
+  padding: 8px 18px;
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  background: #fff;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.pet-holder {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 8px 0 4px;
+}
+
+.mic-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto 10px;
+  max-width: 420px;
+  padding: 10px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  background: #fff3c9;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+
+.actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 92px;
+  padding: 10px 0 8px;
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 5px 0 var(--ink);
+  font-weight: 700;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.actions button:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--ink);
+}
+
+.actions button:disabled { opacity: 0.45; cursor: default; }
+.actions .emoji { font-size: 1.8rem; line-height: 1.2; }
+
+/* ---------- The pet drawing ---------- */
+
+.pet {
+  --line: #3b2b28;
+  --mouth: 0;
+  height: 100%;
+  max-width: 100%;
+  overflow: visible;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.pet [data-zone] { cursor: pointer; }
+.pet .o { stroke: var(--line); stroke-width: 3; stroke-linejoin: round; }
+.pet .fur { fill: var(--fur); }
+.pet .dark { fill: var(--fur-dark); }
+.pet .belly { fill: var(--belly); }
+.pet .limb { fill: var(--limb); }
+.pet .inner { fill: var(--inner); }
+.pet .soft { opacity: 0.55; }
+.pet .shadow { fill: rgb(0 0 0 / 0.14); }
+.pet .tail-outline { fill: none; stroke: var(--line); stroke-width: 24; stroke-linecap: round; }
+.pet .tail-fill { fill: none; stroke: var(--fur); stroke-width: 18; stroke-linecap: round; }
+.pet .whisker { fill: none; stroke: var(--line); stroke-width: 2; stroke-linecap: round; }
+.pet .marking { fill: none; stroke: var(--fur-dark); stroke-width: 6; stroke-linecap: round; }
+.pet .cheek { fill: #ff8fa0; opacity: 0.45; }
+.pet .eye-white { fill: #fff; stroke: var(--line); stroke-width: 2.5; }
+.pet .pupil { fill: #2a1f1c; }
+.pet .glint { fill: #fff; }
+.pet .lid { fill: none; stroke: var(--line); stroke-width: 4; stroke-linecap: round; }
+.pet-panda .lid { stroke: #fff; }
+.pet .nose { fill: var(--nose); stroke: var(--line); stroke-width: 2; stroke-linejoin: round; }
+.pet .smile { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
+.pet .mouth-hole { fill: #6b2230; stroke: var(--line); stroke-width: 2.5; }
+.pet .tongue { fill: #ff8fa0; }
+.pet .tooth { fill: #fff; stroke: var(--line); stroke-width: 2; }
+.pet .tooth-gap { stroke: var(--line); stroke-width: 1.5; }
+.pet .prop { font-size: 44px; opacity: 0; pointer-events: none; transform-origin: 150px 220px; }
+.pet .prop-zzz { font-size: 26px; font-weight: 800; fill: #fff; transform-origin: 236px 62px; }
+
+/* Pivots are in the drawing's own coordinates. */
+.pet .whole { transform-origin: 150px 350px; }
+.pet .torso { transform-origin: 150px 350px; animation: breathe 3s ease-in-out infinite; }
+.pet .head { transform-origin: 150px 196px; transition: transform 0.25s; }
+.pet .tail { transform-origin: 196px 300px; animation: wag 0.8s ease-in-out infinite alternate; }
+.pet .arm-right { transform-origin: 208px 230px; transition: transform 0.25s; }
+.pet .eyes-open { transform-origin: 150px 120px; animation: blink 4.5s infinite; }
+.pet .eyes-closed { display: none; }
+.pet .mouth-open { transform-origin: 150px 154px; transform: scaleY(var(--mouth)); }
+
+.is-listening .head { transform: rotate(-9deg); }
+.is-listening .arm-right { transform: rotate(-155deg); }
+
+.is-talking .head { animation: bob 0.35s ease-in-out infinite alternate; }
+
+.react-head .head { animation: shake 0.3s linear 4; }
+.react-head .eyes-open,
+.is-sleeping .eyes-open { display: none; }
+.react-head .eyes-closed,
+.is-sleeping .eyes-closed { display: block; }
+.react-head .mouth-open { transform: scaleY(0.7); }
+
+.react-belly .whole { animation: giggle 0.2s ease-in-out 6 alternate; }
+.react-belly .mouth-open { transform: scaleY(0.9); }
+
+.react-tail .whole { animation: jump 1s cubic-bezier(0.3, 1.6, 0.6, 1); }
+.react-tail .eyes-open { animation: none; transform: scale(1.25); }
+.react-tail .mouth-open { transform: scaleY(1.1); }
+
+.react-feet .whole { animation: hop 0.4s ease-out 2; }
+
+.is-eating .prop-food,
+.is-drinking .prop-milk { animation: serve 2.6s ease-in-out forwards; }
+.is-eating .mouth-open { animation: chomp 0.33s ease-in-out infinite alternate; }
+.is-drinking .mouth-open { transform: scaleY(0.5); }
+.is-drinking .head { transform: rotate(5deg); }
+
+.is-sleeping .head { transform: rotate(7deg) translateY(6px); }
+.is-sleeping .tail { animation: none; }
+.is-sleeping .torso { animation-duration: 5s; }
+.is-sleeping .prop-zzz { animation: zzz 2.8s ease-in-out infinite; }
+
+@keyframes breathe { 50% { transform: scale(1.02, 0.985); } }
+@keyframes wag { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.08); } }
+@keyframes bob { from { transform: rotate(-3deg); } to { transform: rotate(3deg) translateY(-3px); } }
+@keyframes shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+@keyframes giggle { from { transform: scale(1, 1); } to { transform: scale(1.05, 0.93); } }
+@keyframes jump { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-60px) scale(0.96, 1.06); } }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-22px); } }
+@keyframes chomp { from { transform: scaleY(0.15); } to { transform: scaleY(1); } }
+@keyframes serve {
+  0% { opacity: 0; transform: translateY(40px); }
+  15% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; transform: translateY(-46px) scale(0.6); }
+  100% { opacity: 0; transform: translateY(-54px) scale(0.2); }
+}
+@keyframes zzz {
+  0% { opacity: 0; transform: translate(-10px, 12px) scale(0.7); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: translate(14px, -26px) scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet .torso, .pet .tail, .pet .eyes-open { animation: none; }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Talking Pets",
+  "short_name": "Talking Pets",
+  "description": "A pet that repeats what you say in a funny voice. No ads.",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff8ec",
+  "theme_color": "#ffd9a0",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
