@@ -1,6 +1,6 @@
 // Offline support: use the network when there is one, the saved copy when there isn't.
 
-const CACHE = 'talking-pets-v3';
+const CACHE = 'talking-pets-v4';
 const SHELL = [
   './',
   'index.html',
@@ -20,6 +20,7 @@ const SHELL = [
   'js/pet3d.js',
   'vendor/three.module.js',
   'vendor/three.core.js',
+  'vendor/RoomEnvironment.js',
   'js/recorder-worklet.js',
 ];
 

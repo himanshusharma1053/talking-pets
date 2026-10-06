@@ -16,7 +16,7 @@ test('every pet has a voice, a food and all its colours', () => {
     assert.ok(pet.speech.rate > 0.5 && pet.speech.rate < 2, pet.id);
     assert.ok(pet.voice.pitch > 0, pet.id);
     assert.ok(pet.food && pet.emoji, pet.id);
-    for (const part of ['fur', 'dark', 'belly', 'limb', 'inner', 'nose']) {
+    for (const part of ['fur', 'dark', 'belly', 'limb', 'inner', 'nose', 'iris']) {
       assert.match(pet.colors[part], /^#[0-9a-f]{6}$/, `${pet.id} ${part}`);
     }
   }

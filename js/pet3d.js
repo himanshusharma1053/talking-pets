@@ -1,6 +1,7 @@
 // The 3D pet: builds a plush-toy model for each pet and animates it.
 
 import * as THREE from '../vendor/three.module.js';
+import { RoomEnvironment } from '../vendor/RoomEnvironment.js';
 import { ACTIONS, CUES } from './actions.js';
 
 const CLOSED = 0.08; // eye height when shut
@@ -33,16 +34,16 @@ function textSprite(text, color) {
 
 function buildPet(pet) {
   const c = pet.colors;
-  // Sheen gives the soft, velvety edge of a plush toy.
+  // Sheen gives the soft, velvety edge of a plush toy without washing out its colour.
   const plush = (color) =>
     new THREE.MeshPhysicalMaterial({
       color,
-      roughness: 0.8,
-      sheen: 1,
-      sheenRoughness: 0.5,
-      sheenColor: new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.6),
+      roughness: 0.7,
+      sheen: 0.35,
+      sheenRoughness: 0.35,
+      sheenColor: new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.15),
     });
-  const glossy = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.12 });
+  const glossy = (color) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.05 });
   const matte = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
   const flat = (color, opacity = 1) => new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity });
   const M = {
@@ -53,7 +54,8 @@ function buildPet(pet) {
     inner: plush(c.inner),
     nose: glossy(c.nose),
     eye: glossy('#ffffff'),
-    pupil: glossy('#1d1512'),
+    iris: glossy(c.iris),
+    pupil: glossy('#120c0a'),
     mouth: matte('#5a1a26'),
     tongue: matte('#ff8fa0'),
     line: matte('#3b2b28'),
@@ -91,7 +93,10 @@ function buildPet(pet) {
 
   // ----- Body -----
   const feet = group(root, [0, 0, 0], 'feet');
-  sides((s) => blob(feet, M.feet ?? M.limb, 0.34, [s * 0.42, 0.2, 0.3], [1, 0.6, 1.35]));
+  sides((s) => {
+    blob(feet, M.feet ?? M.limb, 0.34, [s * 0.42, 0.2, 0.3], [1, 0.6, 1.35]);
+    for (const toe of [-0.16, 0, 0.16]) blob(feet, M.feet ?? M.limb, 0.11, [s * 0.42 + toe, 0.2, 0.72 - Math.abs(toe) * 0.4], [1, 0.9, 1]);
+  });
 
   const tail = group(root, [0, 0.75, -0.65], 'tail');
   const tube = (points, radius, material = M.fur) => {
@@ -112,19 +117,24 @@ function buildPet(pet) {
   if (pet.id === 'unicorn') tube([[0, 0, 0], [0.6, 0.3, -0.3], [1.05, 0.2, -0.2], [1.25, -0.3, -0.1]], 0.17, M.dark);
 
   const torso = group(root, [0, 0, 0], 'belly');
-  blob(torso, M.fur, 0.85, [0, 1.2, 0], [1, 1.12, 0.92]);
-  blob(torso, M.belly, 0.6, [0, 1.08, 0.42], [1, 1.15, 0.7]);
+  const outline = [[0.02, 0.3], [0.5, 0.33], [0.8, 0.62], [0.88, 1.0], [0.8, 1.45], [0.62, 1.85], [0.45, 2.08], [0.02, 2.2]];
+  const profile = new THREE.SplineCurve(outline.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(36);
+  for (const point of profile) point.x = Math.max(0.01, point.x);
+  add(torso, new THREE.Mesh(new THREE.LatheGeometry(profile, 48), M.fur)).scale.z = 0.92; // narrow shoulders, round tummy
+  blob(torso, M.belly, 0.62, [0, 1.02, 0.36], [1.08, 1.2, 0.74]);
   const gloves = [];
   const [armL, armR] = sides((s) => {
     const pivot = group(torso, [s * 0.74, 1.72, 0.05]);
     const arm = add(pivot, new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.5, 8, 16), M.limb), [0, -0.42, 0]);
     if (pet.id === 'penguin') arm.scale.z = 0.45; // flippers
-    gloves.push(blob(pivot, M.red, 0.28, [0, -0.8, 0])); // boxing gloves, hidden until needed
+    blob(pivot, M.limb, 0.22, [0, -0.72, 0], [1, 1, pet.id === 'penguin' ? 0.5 : 1]); // paw
+    gloves.push(blob(pivot, M.red, 0.3, [0, -0.76, 0])); // boxing gloves, hidden until needed
     return pivot;
   });
 
   // ----- Head -----
   const head = group(root, [0, 2.0, 0], 'head');
+  head.scale.setScalar(1.15); // a big head reads as young and friendly
   blob(head, M.fur, 0.95, [0, 0.8, 0], [1.08, 0.95, 0.95]);
 
   if (pet.id === 'cat') {
@@ -136,7 +146,7 @@ function buildPet(pet) {
   }
   if (pet.id === 'dog') {
     sides((s) => blob(head, M.dark, 0.3, [s * 1.0, 0.72, 0.05], [0.5, 1.5, 0.9], [0, 0, s * 0.22]));
-    blob(head, M.dark, 0.34, [0.38, 0.95, 0.58], [1, 1.1, 0.5]);
+    blob(head, M.dark, 0.41, [0.42, 0.98, 0.56], [1, 1.1, 0.5]);
   }
   if (pet.id === 'bunny') {
     sides((s) => {
@@ -149,7 +159,7 @@ function buildPet(pet) {
   if (pet.id === 'panda') {
     sides((s) => {
       blob(head, M.dark, 0.32, [s * 0.72, 1.5, 0], [1, 1, 0.6]);
-      blob(head, M.dark, 0.37, [s * 0.4, 0.9, 0.6], [1, 1.25, 0.5], [0, 0, -s * 0.35]);
+      blob(head, M.dark, 0.45, [s * 0.43, 0.94, 0.56], [1, 1.22, 0.5], [0, 0, -s * 0.35]);
     });
   }
 
@@ -157,7 +167,7 @@ function buildPet(pet) {
     sides((s) => {
       cone(head, M.fur, 0.36, 0.8, [s * 0.6, 1.62, 0], [0, 0, -s * 0.3]);
       cone(head, M.dark, 0.2, 0.5, [s * 0.59, 1.62, 0.14], [0, 0, -s * 0.3]);
-      blob(head, M.belly, 0.42, [s * 0.52, 0.5, 0.42], [1.1, 0.8, 0.8]); // white cheeks
+      blob(head, M.belly, 0.36, [s * 0.5, 0.48, 0.5], [1.15, 0.75, 0.7]); // white cheeks
     });
   }
   if (pet.id === 'monkey') {
@@ -204,14 +214,21 @@ function buildPet(pet) {
   const eyeZ = pet.id === 'monkey' || pet.id === 'penguin' ? 0.84 : 0.74; // sit on top of the face patch
   const pupils = [];
   const eyes = sides((s) => {
-    const eye = group(head, [s * 0.36, 0.95, eyeZ]);
-    blob(eye, M.eye, 0.21, [0, 0, 0], [1, 1.15, 0.55]);
+    const eye = group(head, [s * 0.4, 0.98, eyeZ]);
+    blob(eye, M.eye, 0.26, [0, 0, 0], [1, 1.12, 0.5]);
     const pupil = group(eye, [0, 0, 0.09]);
-    blob(pupil, M.pupil, 0.12, [0, 0, 0], [1, 1.1, 0.5]);
-    blob(pupil, flat('#ffffff'), 0.04, [0.04, 0.05, 0.05]);
+    blob(pupil, M.iris, 0.17, [0, 0, 0], [1, 1.05, 0.42]);
+    blob(pupil, M.pupil, 0.1, [0, 0, 0.035], [1, 1.05, 0.42]);
+    blob(pupil, flat('#ffffff'), 0.05, [0.06, 0.07, 0.075]);
+    blob(pupil, flat('#ffffff'), 0.025, [-0.05, -0.06, 0.075]);
     pupils.push(pupil);
     return eye;
   });
+
+  // Eyebrows, except where they would vanish into dark fur.
+  if (pet.id !== 'panda' && pet.id !== 'penguin') {
+    sides((s) => blob(head, M.dark, 0.04, [s * 0.42, 1.37, 0.61], [3.4, 1, 1], [-0.6, 0, -s * 0.2]));
+  }
 
   const mouthZ = hasBeak ? 0.86 : 0.7 + 0.27 * big;
   const mouth = group(head, [0, 0.4, mouthZ]);
@@ -245,8 +262,8 @@ function buildPet(pet) {
     blob(crown, glossy(i % 2 ? '#e63946' : '#3a86ff'), 0.05, [Math.sin(a) * 0.43, 0.14, Math.cos(a) * 0.43]);
   }
 
-  const shades = (accessories.shades = group(head, [0, 0.96, 0.86]));
-  sides((s) => blob(shades, glossy('#16161c'), 0.27, [s * 0.36, 0, 0], [1, 0.85, 0.3]));
+  const shades = (accessories.shades = group(head, [0, 0.98, 0.9]));
+  sides((s) => blob(shades, glossy('#16161c'), 0.32, [s * 0.4, 0, 0], [1, 0.85, 0.3]));
   add(shades, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.05), glossy('#16161c')), [0, 0.06, 0.03]);
 
   const red = M.red;
@@ -361,7 +378,7 @@ function pose(m, v, dt, snap) {
       T.squash = Math.sin(time * 1.2) * 0.03;
       P.zzz.forEach((z, i) => {
         const p = (time * 0.4 + i / 3) % 1;
-        show(z, 1.0 + p * 0.9, 3.4 + p * 1.3, 0.4, 0.3 + p * 0.45, Math.sin(p * Math.PI));
+        show(z, 1.1 + p * 0.9, 3.7 + p * 1.3, 0.4, 0.3 + p * 0.45, Math.sin(p * Math.PI));
       });
       break;
 
@@ -404,7 +421,7 @@ function pose(m, v, dt, snap) {
       T.armR = 0.9;
       P.stars.forEach((star, i) => {
         const a = t * 4 + (i * TWO_PI) / 3;
-        show(star, Math.cos(a) * 0.95, 4.0 + Math.sin(t * 5 + i) * 0.08, Math.sin(a) * 0.95, 0.5);
+        show(star, Math.cos(a) * 1.05, 4.45 + Math.sin(t * 5 + i) * 0.08, Math.sin(a) * 1.05, 0.5);
       });
       break;
 
@@ -435,12 +452,12 @@ function pose(m, v, dt, snap) {
       const u = t - CUES.ballHit;
       if (u < 0) {
         const p = t / CUES.ballHit;
-        show(P.ball, -4.2 + p * 3.5, 4.6 - p * p * 0.8, 0.3, 0.3);
+        show(P.ball, -4.2 + p * 3.5, 4.9 - p * p * 0.8, 0.3, 0.3);
         T.headRy = -0.35;
         T.pupilX = -0.05;
         T.pupilY = 0.04;
       } else {
-        show(P.ball, -0.7 + u * 3.2, Math.max(0.3, 3.8 + 3 * u - 7 * u * u), 0.3, 0.3);
+        show(P.ball, -0.7 + u * 3.2, Math.max(0.3, 4.1 + 3 * u - 7 * u * u), 0.3, 0.3);
         T.headRz = -0.5 * Math.exp(-u * 3) * Math.cos(u * 10);
         T.squash = 0.07 * Math.exp(-u * 5);
         if (u < 0.5) T.eyes = CLOSED;
@@ -453,7 +470,7 @@ function pose(m, v, dt, snap) {
       const u = t - CUES.pieHit;
       if (u < 0) {
         const away = 1 - t / CUES.pieHit;
-        show(P.pie, 0, 2.7 + away * 0.6, 1.4 + away * 7, 1.3);
+        show(P.pie, 0, 2.9 + away * 0.6, 1.5 + away * 7, 1.4);
         T.eyeSize = 1.35;
         T.mouth = 0.5;
       } else {
@@ -589,11 +606,38 @@ function pose(m, v, dt, snap) {
   m.mouth.scale.set(1 + C.mouth * 0.15, C.mouth, 1);
 }
 
-function createScene(pet) {
-  const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight('#ffffff', '#e2b98a', 2.0));
+// A soft dark patch under the pet, so it looks planted on the floor.
+function contactShadow() {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const g = canvas.getContext('2d');
+  const fade = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  fade.addColorStop(0, 'rgba(60, 35, 20, 0.45)');
+  fade.addColorStop(1, 'rgba(60, 35, 20, 0)');
+  g.fillStyle = fade;
+  g.fillRect(0, 0, 128, 128);
+  const patch = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.4, 2.6),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false }),
+  );
+  patch.rotation.x = -Math.PI / 2;
+  patch.position.set(0, 0.02, 0.1);
+  return patch;
+}
 
-  const key = new THREE.DirectionalLight('#fff3e0', 2.4);
+function createScene(pet, renderer) {
+  const scene = new THREE.Scene();
+
+  // Light bouncing in from all around, as in a photo studio. This is what makes
+  // the eyes glint and the fur look soft rather than flat.
+  const studio = new RoomEnvironment();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(studio, 0.04).texture;
+  scene.environmentIntensity = 0.6;
+  pmrem.dispose();
+  disposeScene(studio);
+
+  const key = new THREE.DirectionalLight('#fff1dd', 2.0);
   key.position.set(2.5, 9, 5);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -602,14 +646,14 @@ function createScene(pet) {
   key.shadow.bias = -0.0005;
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight('#bfe0ff', 1.6);
+  const rim = new THREE.DirectionalLight('#cfe6ff', 1.4);
   rim.position.set(-4, 4, -5);
   scene.add(rim);
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.22 }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.2 }));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
-  scene.add(floor);
+  scene.add(floor, contactShadow());
 
   const model = buildPet(pet);
   scene.add(model.root, model.props);
@@ -620,16 +664,17 @@ function createScene(pet) {
 
 // Pull the camera back far enough to fit the pet, ears and all, at any screen shape.
 function frame(camera, aspect) {
-  const distance = 10.4 * Math.max(1, 0.62 / aspect);
+  const distance = 11.2 * Math.max(1, 0.62 / aspect);
   camera.aspect = aspect;
-  camera.position.set(0, 3.0, distance);
-  camera.lookAt(0, 2.3, 0);
+  camera.position.set(0, 3.1, distance);
+  camera.lookAt(0, 2.45, 0);
   camera.updateProjectionMatrix();
 }
 
 function newRenderer() {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.shadowMap.enabled = true;
+  renderer.toneMapping = THREE.NeutralToneMapping; // keeps bright colours true instead of washing them out
   return renderer;
 }
 
@@ -641,6 +686,7 @@ function disposeScene(scene) {
     item.material?.map?.dispose();
     item.material?.dispose();
   });
+  scene.environment?.dispose();
 }
 
 // Still pictures of each pet for the picker, as { id: dataURL }.
@@ -649,7 +695,7 @@ export function renderThumbnails(pets, width = 240, height = 300) {
   renderer.setSize(width, height, false);
   const images = {};
   for (const pet of pets) {
-    const { scene, camera, model } = createScene(pet);
+    const { scene, camera, model } = createScene(pet, renderer);
     frame(camera, width / height);
     pose(model, newViewState(), 0, true);
     renderer.render(scene, camera);
@@ -665,7 +711,7 @@ export function renderThumbnails(pets, width = 240, height = 300) {
 export function createPetView(container, pet) {
   const renderer = newRenderer();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  const { scene, camera, model } = createScene(pet);
+  const { scene, camera, model } = createScene(pet, renderer);
   const canvas = renderer.domElement;
   container.replaceChildren(canvas);
 

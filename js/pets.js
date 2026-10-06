@@ -12,7 +12,7 @@ export const PETS = [
     speech: { pitch: 1.8, rate: 1.15 },
     food: '🐟',
     voice: { wave: 'sawtooth', pitch: 700 },
-    colors: { fur: '#f29a2e', dark: '#c96a12', belly: '#fff1dc', limb: '#f29a2e', inner: '#ffb3bd', nose: '#e8707e' },
+    colors: { fur: '#ff9a2b', dark: '#d9620b', belly: '#fff3e0', limb: '#ff9a2b', inner: '#ffb0bd', nose: '#f0647a', iris: '#3fae52' },
   },
   {
     id: 'dog',
@@ -24,7 +24,7 @@ export const PETS = [
     speech: { pitch: 1.2, rate: 1.05 },
     food: '🦴',
     voice: { wave: 'square', pitch: 280 },
-    colors: { fur: '#c98a52', dark: '#7a4a28', belly: '#f8e6cf', limb: '#c98a52', inner: '#7a4a28', nose: '#2b2020' },
+    colors: { fur: '#d8934c', dark: '#874a20', belly: '#fcead2', limb: '#d8934c', inner: '#874a20', nose: '#2a1d1b', iris: '#6a3d17' },
   },
   {
     id: 'bunny',
@@ -36,7 +36,7 @@ export const PETS = [
     speech: { pitch: 2, rate: 1.25 },
     food: '🥕',
     voice: { wave: 'sine', pitch: 1100 },
-    colors: { fur: '#f3ece4', dark: '#d9cdbf', belly: '#ffffff', limb: '#f3ece4', inner: '#f7a8ba', nose: '#f08fa3' },
+    colors: { fur: '#fbf5ee', dark: '#dccbb9', belly: '#ffffff', limb: '#fbf5ee', inner: '#ff9db5', nose: '#ff7b9a', iris: '#3d9be0' },
   },
   {
     id: 'panda',
@@ -48,7 +48,7 @@ export const PETS = [
     speech: { pitch: 0.4, rate: 0.85 },
     food: '🎋',
     voice: { wave: 'triangle', pitch: 200 },
-    colors: { fur: '#f6f5f0', dark: '#2a2a30', belly: '#f6f5f0', limb: '#2a2a30', inner: '#2a2a30', nose: '#2a2a30' },
+    colors: { fur: '#fafaf6', dark: '#25252b', belly: '#fafaf6', limb: '#25252b', inner: '#25252b', nose: '#25252b', iris: '#4a3222' },
   },
   {
     id: 'fox',
@@ -60,7 +60,7 @@ export const PETS = [
     speech: { pitch: 1.5, rate: 1.3 },
     food: '🍇',
     voice: { wave: 'sawtooth', pitch: 520 },
-    colors: { fur: '#e8672a', dark: '#3a2a26', belly: '#fff3e6', limb: '#3a2a26', inner: '#3a2a26', nose: '#2b2020' },
+    colors: { fur: '#ff6a26', dark: '#33211e', belly: '#fff6ec', limb: '#33211e', inner: '#33211e', nose: '#2a1d1b', iris: '#d08a12' },
   },
   {
     id: 'monkey',
@@ -72,7 +72,7 @@ export const PETS = [
     speech: { pitch: 1.7, rate: 1.2 },
     food: '🍌',
     voice: { wave: 'square', pitch: 600 },
-    colors: { fur: '#8a5a3c', dark: '#5e3a24', belly: '#f1cfa6', limb: '#8a5a3c', inner: '#f1cfa6', nose: '#5e3a24' },
+    colors: { fur: '#9b5e35', dark: '#683a1f', belly: '#ffd8a6', limb: '#9b5e35', inner: '#ffd8a6', nose: '#683a1f', iris: '#6a3d17' },
   },
   {
     id: 'penguin',
@@ -84,7 +84,7 @@ export const PETS = [
     speech: { pitch: 1.35, rate: 1 },
     food: '🦐',
     voice: { wave: 'triangle', pitch: 450 },
-    colors: { fur: '#2c3345', dark: '#1d2230', belly: '#ffffff', limb: '#2c3345', inner: '#2c3345', nose: '#ff9f1c', feet: '#ff9f1c' },
+    colors: { fur: '#26314d', dark: '#182036', belly: '#ffffff', limb: '#26314d', inner: '#26314d', nose: '#ffab1f', feet: '#ffab1f', iris: '#2f77c4' },
   },
   {
     id: 'unicorn',
@@ -96,7 +96,7 @@ export const PETS = [
     speech: { pitch: 1.9, rate: 1.05 },
     food: '🍭',
     voice: { wave: 'sine', pitch: 900 },
-    colors: { fur: '#fdf7ff', dark: '#ff8ad4', belly: '#ffffff', limb: '#fdf7ff', inner: '#ffc2e2', nose: '#f7a8c8', feet: '#c9a6f5' },
+    colors: { fur: '#fff9ff', dark: '#ff79c9', belly: '#ffffff', limb: '#fff9ff', inner: '#ffbfe1', nose: '#ff97c8', feet: '#c598ff', iris: '#9457e6' },
   },
 ];
 

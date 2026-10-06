@@ -1,12 +1,15 @@
 # Talking Pets
 
-A 3D pet that listens and repeats what you say in a funny voice. Pick a cat, dog, bunny or panda. No ads, no tracking, and nothing you say leaves the device.
+A 3D pet that listens and repeats what you say in a funny voice. Pick a cat, dog, bunny, panda, fox, monkey, penguin or unicorn. No ads, no tracking, and nothing you say leaves the device.
+
+What comes next is in [ROADMAP.md](ROADMAP.md).
 
 ## What the pet does
 
 - **Talks back:** say something and it repeats it in its own voice.
 - **Reacts to pokes:** head, belly, tail and feet each do something different. Poke the head three times quickly and it gets dizzy.
-- **Buttons:** feed, milk (with a burp), ball, pie in the face, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
+- **Buttons:** feed, milk (with a burp), ball, pie in the face, swing, boxing, trampoline, bubbles, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
+- **Speaks:** it says its reactions aloud using the device's speech voice, so there is nothing to read.
 - **Watches you:** its head and eyes follow your finger or mouse.
 
 ## Run it
@@ -29,7 +32,8 @@ npm test
 
 - `js/pets.js` — the pets: name, voice pitch, colours.
 - `js/pet3d.js` — builds each pet's 3D model and animates it.
-- `js/actions.js` — the buttons and pokes: how long each lasts and its caption.
+- `js/actions.js` — the buttons and pokes: how long each lasts and what the pet says.
+- `js/speech.js` — the pet speaking its lines.
 - `js/state.js` — what the pet is doing and which events change it.
 - `js/vad.js` — detects when you start and stop talking.
 - `js/voice.js` — microphone capture and pitched playback.
