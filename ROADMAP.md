@@ -7,7 +7,7 @@ The goal: a pet app kids come back to, shipped first as an installable web app (
 - Eight pets: cat, dog, bunny, panda, fox, monkey, penguin, unicorn.
 - Talk-back: the pet repeats what you say in its own voice.
 - Pokes: head, belly, tail, feet, and a dizzy spell after three head pokes.
-- Four games with scores: boxing, the swing, catch the food and bubble pop.
+- Six games with scores: boxing, the swing, catch the food, bubble pop, football penalties and piano.
 - Nine buttons: feed, milk, ball, pie, trampoline, dance, toot, dress up, sleep.
 - The pet speaks its reactions aloud; there are no captions to read.
 - Installable, works offline.
@@ -19,8 +19,7 @@ These turn "press a button and watch" into things kids actually play.
 1. **Boxing and the swing are built.** Still to add: streak bonuses in boxing, and swiping (not just tapping) to push the swing.
 2. **Difficulty by age.** An easy mode with slower pads and a gentler swing for the youngest.
 3. **Catch the food and bubble pop are built.** Still to add: surprises inside some bubbles.
-5. **Football penalties.** Swipe to shoot; the pet is the goalkeeper.
-6. **Piano and drums.** Tap keys and the pet sings each note in its voice.
+5. **Football penalties and piano are built.** Still to add: swiping to shoot, drums, and more tunes.
 7. **Hide and seek.** The pet hides behind furniture; tap where it is.
 8. **Simon says.** The pet does a move and the child copies it by tapping the right body part.
 
@@ -43,7 +42,7 @@ The pets are built in code from simple shapes. That gets to "nice plush toy" and
 - **Or license** a ready-made animated animal pack from an asset store, checking the licence allows a published app.
 - The app can load these as standard `.glb` files in place of the built-in models; the animation and game code stays.
 
-Also worth doing: real recorded sound effects and a child-friendly voice for the pet's lines, in place of the synthesised ones.
+Also worth doing: real recorded sound effects, and a recorded child-friendly voice actor for the pet's lines in place of the device's speech voice. Both need audio files with a licence that allows publishing them in an app.
 
 ## Launching on Android
 

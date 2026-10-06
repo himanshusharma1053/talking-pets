@@ -1,7 +1,7 @@
 import { PETS, findPet } from './pets.js';
 import { nextState, micOpen } from './state.js';
 import { ACTIONS, REACTIONS, GAMES, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine, scoreLine } from './actions.js';
-import { POP, createBoxing, createSwing, createCatch, createPop, newRecord } from './games.js';
+import { POP, PENALTY, SCALE, createBoxing, createSwing, createCatch, createPop, createPenalty, createPiano, newRecord } from './games.js';
 import { createSounds } from './sounds.js';
 import { createVoice, playSamples } from './voice.js';
 import { createPetView, renderThumbnails } from './pet3d.js';
@@ -54,7 +54,8 @@ const stage = $('stage');
 const holder = $('pet-holder');
 const micNotice = $('mic-notice');
 const actionButtons = [...document.querySelectorAll('.controls button')];
-const NEW_GAME = { boxing: createBoxing, swing: createSwing, catch: createCatch, pop: createPop };
+const NEW_GAME = { boxing: createBoxing, swing: createSwing, catch: createCatch, pop: createPop, penalty: createPenalty, piano: createPiano };
+const pianoKeys = [...document.querySelectorAll('.piano button')];
 
 let pet = null;
 let view = null;
@@ -130,6 +131,7 @@ function emojiView() {
     setAccessory: nothing,
     setGame: nothing,
     worldX: () => 0,
+    aim: () => ({ x: 0, y: 0 }),
     setTicker: (fn) => (clock = setInterval(() => fn(0.05), 50)),
     dispose: () => clearInterval(clock),
     pick: () => 'belly',
@@ -219,6 +221,7 @@ function quiet() {
   game = null;
   fx = null;
   view?.setGame(null);
+  for (const key of pianoKeys) key.classList.remove('next');
 }
 
 // `payload` depends on the activity: the part poked, the button pressed, the
@@ -300,6 +303,10 @@ function tick(dt) {
       sounds?.yuck();
       fx = { kind: 'yuck', t: 0 };
     } else if (event === 'blow') sounds?.bloop();
+    else if (event === 'goal') {
+      sounds?.cheer();
+      say('Goal!', pet);
+    } else if (event === 'save') sounds?.boing();
     else if (event === 'end') {
       endGame();
       return;
@@ -309,7 +316,7 @@ function tick(dt) {
   renderHud();
 }
 
-function gameTap(zone, clientX) {
+function gameTap(zone, clientX, clientY) {
   const { kind } = game.state;
   if (kind === 'boxing') {
     if (!zone?.startsWith('pad')) return;
@@ -319,6 +326,11 @@ function gameTap(zone, clientX) {
     sounds?.thud();
   } else if (kind === 'catch') {
     game.steer(view.worldX(clientX));
+  } else if (kind === 'penalty') {
+    const target = view.aim(clientX, clientY, PENALTY.goalZ);
+    if (game.shoot(target.x, target.y)) sounds?.kick();
+  } else if (kind === 'piano') {
+    // The piano is played on its own keys, not on the pet.
   } else if (kind === 'pop') {
     if (!zone?.startsWith('bubble')) return;
     // Each bubble on screen is drawn in the slot given by its id.
@@ -338,6 +350,7 @@ function gameTap(zone, clientX) {
 function renderHud() {
   if (!game) return;
   $('hud-score').textContent = game.state.score;
+  pianoKeys.forEach((key, i) => key.classList.toggle('next', game.state.kind === 'piano' && i === game.state.next));
   $('hud-time').style.transform = `scaleX(${game.state.left / game.state.seconds})`;
 }
 
@@ -367,12 +380,23 @@ function endGame() {
 
 $('hud-quit').addEventListener('click', () => dispatch('quit'));
 
+pianoKeys.forEach((key, i) => {
+  key.addEventListener('pointerdown', () => {
+    if (game?.state.kind !== 'piano') return;
+    const result = game.press(i);
+    if (!result) return;
+    sounds?.note(SCALE[i], pet);
+    if (result === 'tune') sounds?.bell();
+    fx = { kind: 'note', key: i, right: result !== 'free', t: 0 };
+  });
+});
+
 // ---------- Taps and buttons ----------
 
 holder.addEventListener('pointerdown', (e) => {
   let zone = view.pick(e.clientX, e.clientY);
   if (state === 'playing') {
-    gameTap(zone, e.clientX);
+    gameTap(zone, e.clientX, e.clientY);
     return;
   }
   if (!zone) return;

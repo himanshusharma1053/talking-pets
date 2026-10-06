@@ -276,6 +276,112 @@ export function createPop(random = Math.random) {
   };
 }
 
+export const PENALTY = {
+  seconds: 30,
+  halfWidth: 2.4, // the goal, in the pet's own units
+  height: 3.6,
+  margin: 0.3, // shots this close to a post still count as on target
+  goalZ: -1.6, // how far back the goal line is
+  ballZ: 6, // where the ball waits, close to the player
+  flight: 0.55, // seconds from kick to goal line
+  recover: 1.0, // seconds before the next ball
+  guess: 0.4, // how often the keeper dives the right way
+  keeperRange: 1.3, // how far to either side the keeper can dive
+  reachX: 0.9, // how close the keeper must be to save it
+  reachY: 3.0, // shots above this are out of the keeper's reach
+};
+
+// You take penalties; the pet is in goal.
+export function createPenalty(random = Math.random) {
+  const g = {
+    kind: 'penalty', seconds: PENALTY.seconds, time: 0, left: PENALTY.seconds, score: 0,
+    phase: 'ready', shot: null, keeperX: 0, outcome: null, result: null, over: false,
+  };
+  const within = (value, most) => Math.max(-most, Math.min(most, value));
+
+  return {
+    state: g,
+    // Move time on by dt seconds. Returns what happened: 'goal', 'save', 'miss', 'end'.
+    update(dt) {
+      const events = [];
+      if (g.over) return events;
+      g.time += dt;
+      g.left = Math.max(0, PENALTY.seconds - g.time);
+      if (g.left === 0) {
+        g.over = true;
+        events.push('end');
+        return events;
+      }
+      if (!g.shot) return events;
+      g.shot.t += dt;
+      if (g.phase === 'flying' && g.shot.t >= PENALTY.flight) {
+        g.phase = 'result';
+        g.result = g.outcome;
+        if (g.result === 'goal') g.score += 1;
+        events.push(g.result);
+      } else if (g.phase === 'result' && g.shot.t >= PENALTY.flight + PENALTY.recover) {
+        Object.assign(g, { phase: 'ready', shot: null, result: null, outcome: null, keeperX: 0 });
+      }
+      return events;
+    },
+    // Kick the ball at this point of the goal mouth. Returns whether a shot was taken.
+    shoot(x, y) {
+      if (g.over || g.phase !== 'ready') return false;
+      const onTarget = Math.abs(x) <= PENALTY.halfWidth + PENALTY.margin && y >= 0 && y <= PENALTY.height + PENALTY.margin;
+      // The keeper guesses: sometimes right, sometimes not.
+      g.keeperX = random() < PENALTY.guess ? within(x, PENALTY.keeperRange) : (random() * 2 - 1) * PENALTY.keeperRange;
+      const reached = Math.abs(x - g.keeperX) < PENALTY.reachX && y < PENALTY.reachY;
+      g.outcome = !onTarget ? 'miss' : reached ? 'save' : 'goal';
+      g.shot = { x, y, t: 0 };
+      g.phase = 'flying';
+      return true;
+    },
+  };
+}
+
+export const PIANO = { seconds: 45, keys: 8 };
+// The eight keys are one octave of a major scale, numbered 0 (low) to 7 (high).
+export const SCALE = [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25];
+// Old tunes everyone knows, as key numbers.
+export const TUNES = [
+  [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0], // Twinkle, Twinkle, Little Star
+  [2, 1, 0, 1, 2, 2, 2, 1, 1, 1, 2, 4, 4], // Mary Had a Little Lamb
+  [2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 2, 1, 1], // Ode to Joy
+];
+
+// Any key plays a note. The key that comes next in the tune is lit up, and
+// pressing it scores a star.
+export function createPiano() {
+  const g = { kind: 'piano', seconds: PIANO.seconds, time: 0, left: PIANO.seconds, score: 0, tune: 0, at: 0, next: TUNES[0][0], over: false };
+
+  return {
+    state: g,
+    update(dt) {
+      if (g.over) return [];
+      g.time += dt;
+      g.left = Math.max(0, PIANO.seconds - g.time);
+      if (g.left > 0) return [];
+      g.over = true;
+      return ['end'];
+    },
+    // Returns 'right' for the lit key, 'tune' when that finished a tune,
+    // 'free' for any other key, or null once the game is over.
+    press(key) {
+      if (g.over) return null;
+      if (key !== g.next) return 'free';
+      g.score += 1;
+      g.at += 1;
+      const finished = g.at === TUNES[g.tune].length;
+      if (finished) {
+        g.tune = (g.tune + 1) % TUNES.length;
+        g.at = 0;
+      }
+      g.next = TUNES[g.tune][g.at];
+      return finished ? 'tune' : 'right';
+    },
+  };
+}
+
 // Compare a finished game's score with the best so far.
 export function newRecord(score, best) {
   return score > 0 && score > (best ?? 0);

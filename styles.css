@@ -208,6 +208,46 @@ button {
   text-align: center;
 }
 
+/* The piano keyboard, shown only while the piano game is on. */
+.piano {
+  display: none;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  width: 100%;
+  max-width: 640px;
+  height: clamp(110px, 22vh, 190px);
+  margin: 0 auto;
+}
+
+.stage[data-state="playing"][data-detail="piano"] .piano { display: grid; }
+
+.piano button {
+  border: 3px solid var(--ink);
+  border-radius: 0 0 16px 16px;
+  background: var(--key);
+  box-shadow: 0 6px 0 var(--ink);
+  touch-action: none;
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+
+.piano button:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
+.piano button:nth-child(1) { --key: #ff6b6b; }
+.piano button:nth-child(2) { --key: #ff9f43; }
+.piano button:nth-child(3) { --key: #ffd93d; }
+.piano button:nth-child(4) { --key: #6bcb77; }
+.piano button:nth-child(5) { --key: #4dd4c0; }
+.piano button:nth-child(6) { --key: #4d96ff; }
+.piano button:nth-child(7) { --key: #9b72f2; }
+.piano button:nth-child(8) { --key: #ff7ac3; }
+
+/* The key to press next glows and bobs. */
+.piano button.next {
+  background: radial-gradient(circle at 50% 70%, #fff 0 18%, var(--key) 42%);
+  animation: nudge 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes nudge { to { transform: translateY(-8px); } }
+
 /* Games on top in a row of their own, everything else underneath. */
 .controls {
   display: flex;
@@ -224,11 +264,11 @@ button {
   gap: 8px;
 }
 
-.games { grid-template-columns: repeat(4, 1fr); }
+.games { grid-template-columns: repeat(6, 1fr); }
 .actions { grid-template-columns: repeat(9, 1fr); gap: 5px; }
 .actions button { border-radius: 12px; border-width: 2px; box-shadow: 0 3px 0 var(--ink); }
 .actions .emoji { font-size: 1.25rem; }
-.games .emoji { font-size: 1.9rem; }
+.games .emoji { font-size: 1.7rem; }
 
 .controls button {
   display: flex;
@@ -271,9 +311,8 @@ button {
 
 /* Tablets and wide screens: one row of buttons with names, and four pets per row. */
 @media (min-width: 700px) {
-  .controls { flex-direction: row; max-width: 1040px; }
-  .games { flex: 4; }
-  .actions { flex: 9; gap: 8px; }
+  .controls { max-width: 760px; }
+  .actions { gap: 8px; }
   .controls .label { display: inline; }
   .controls .emoji { font-size: 1.6rem; }
   .actions button { border-radius: 16px; border-width: 3px; box-shadow: 0 5px 0 var(--ink); }

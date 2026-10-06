@@ -39,6 +39,8 @@ export const GAMES = {
   swing: { say: ['Push me! Ring the bell!', 'Push me higher!'] },
   catch: { say: ['Catch the food! No socks, please!', 'I am hungry! Help me catch it!'] },
   pop: { say: ['Pop the bubbles!', 'Bubbles! Pop them all!'] },
+  penalty: { say: ['Try to score past me!', 'I am the goalkeeper! Shoot!'] },
+  piano: { say: ['Play the shiny key!', "Let's make music!"] },
 };
 
 // What the pet says when a game ends.

@@ -11,9 +11,10 @@ test('there are eight pets with unique ids and names', () => {
 
 test('every pet has a voice, a food and all its colours', () => {
   for (const pet of PETS) {
-    assert.ok(pet.pitch > 0.5 && pet.pitch < 2.5, pet.id);
-    assert.ok(pet.speech.pitch >= 0 && pet.speech.pitch <= 2, pet.id);
-    assert.ok(pet.speech.rate > 0.5 && pet.speech.rate < 2, pet.id);
+    // Voices stay in a range young children can understand.
+    assert.ok(pet.pitch >= 0.8 && pet.pitch <= 1.6, pet.id);
+    assert.ok(pet.speech.pitch >= 0.8 && pet.speech.pitch <= 1.5, pet.id);
+    assert.ok(pet.speech.rate >= 0.8 && pet.speech.rate <= 1, pet.id);
     assert.ok(pet.voice.pitch > 0, pet.id);
     assert.ok(pet.food && pet.emoji, pet.id);
     for (const part of ['fur', 'dark', 'belly', 'limb', 'inner', 'nose', 'iris']) {

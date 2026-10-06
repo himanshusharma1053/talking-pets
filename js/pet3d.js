@@ -3,7 +3,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { RoomEnvironment } from '../vendor/RoomEnvironment.js';
 import { ACTIONS, CUES } from './actions.js';
-import { FOODS, YUCKS, POP } from './games.js';
+import { FOODS, YUCKS, POP, PENALTY } from './games.js';
 
 const CLOSED = 0.08; // eye height when shut
 const TWO_PI = Math.PI * 2;
@@ -61,7 +61,7 @@ const SWING_LENGTH = 6;
 const PAD_SLOTS = [[-1.2, 3.6], [1.2, 3.6], [-1.3, 2.4], [1.3, 2.4], [-1.15, 1.1], [1.15, 1.1]];
 
 // How far the camera pulls back for each game (0 = the normal view).
-const GAME_ZOOM = { swing: 1, catch: 0.6, pop: 0.35 };
+const GAME_ZOOM = { swing: 1, catch: 0.6, pop: 0.35, penalty: 0.55 };
 
 const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
 
@@ -416,6 +416,24 @@ function buildPet(pet) {
     add(pad, new THREE.Mesh(disc(0.12, 0.16), M.red), [0, 0, 0], [Math.PI / 2, 0, 0]);
     return pad;
   });
+  // The goal for penalties: two posts, a crossbar and a net behind.
+  P.goal = group(props, [0, 0, PENALTY.goalZ]);
+  for (const x of [-PENALTY.halfWidth, PENALTY.halfWidth]) cylinder(P.goal, M.white, 0.09, PENALTY.height, [x, PENALTY.height / 2, 0]);
+  cylinder(P.goal, M.white, 0.09, PENALTY.halfWidth * 2 + 0.18, [0, PENALTY.height, 0], [0, 0, Math.PI / 2]);
+  const strands = [];
+  for (let x = -PENALTY.halfWidth; x <= PENALTY.halfWidth + 0.01; x += 0.4) strands.push(x, 0, -1, x, PENALTY.height, -1);
+  for (let y = 0; y <= PENALTY.height + 0.01; y += 0.4) strands.push(-PENALTY.halfWidth, y, -1, PENALTY.halfWidth, y, -1);
+  const net = new THREE.BufferGeometry();
+  net.setAttribute('position', new THREE.Float32BufferAttribute(strands, 3));
+  P.goal.add(new THREE.LineSegments(net, new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.6 })));
+
+  P.football = new THREE.Group();
+  props.add(P.football);
+  blob(P.football, glossy('#ffffff'), 1, [0, 0, 0]);
+  for (const [x, y, z] of [[0, 0, 1], [0.9, 0.3, -0.3], [-0.9, 0.3, -0.3], [0, -0.95, -0.3], [0, 0.8, -0.6], [0.5, -0.5, 0.7], [-0.5, -0.5, 0.7]]) {
+    blob(P.football, M.pupil, 0.33, [x * 0.82, y * 0.82, z * 0.82]);
+  }
+
   P.pow = textSprite('💥');
   P.sparkle = textSprite('✨');
   P.star = textSprite('⭐');
@@ -472,6 +490,7 @@ function pose(m, v, dt, snap) {
     v.glanceUntil = time + 0.7 + Math.random() * 2.5;
   }
   const T = {
+    size: 1,
     x: 0,
     y: 0,
     ry: 0,
@@ -835,6 +854,76 @@ function pose(m, v, dt, snap) {
       break;
     }
 
+    case 'penalty-game': {
+      const g = v.game;
+      if (!g) break;
+      const shot = g.shot;
+      P.goal.visible = true;
+      T.z = PENALTY.goalZ + 0.9; // the keeper stands just off the line
+      T.size = 0.7; // smaller, so there is goal to aim at around it
+      T.armL = -1.2;
+      T.armR = 1.2;
+      if (!shot) {
+        // Waiting: on its toes, shuffling from side to side, eyes on the ball.
+        show(P.football, 0, 0.34, PENALTY.ballZ, 0.34);
+        T.x = Math.sin(time * 2.2) * 0.35;
+        T.squash = 0.03 + Math.abs(Math.sin(time * 4.4)) * 0.03;
+        T.pupilY = -0.04;
+        break;
+      }
+      const flown = clamp01(shot.t / PENALTY.flight);
+      const after = Math.max(0, shot.t - PENALTY.flight);
+      const side = Math.sign(g.keeperX);
+      const stretch = Math.min(1, Math.abs(g.keeperX) / 1.2); // a short hop or a full-length dive
+
+      // The dive.
+      T.x = g.keeperX;
+      T.rz = -side * 0.8 * stretch;
+      T.y = arc(clamp01(shot.t / (PENALTY.flight * 1.6))) * 0.5 * stretch;
+      T.armL = -2.6;
+      T.armR = 2.6;
+      T.mouth = 0.6;
+      T.eyeSize = 1.2;
+
+      // The ball: out from the spot, then into the net, off the keeper, or wide.
+      let [x, y, z] = [shot.x * flown, 0.34 + (shot.y - 0.34) * flown + arc(flown) * 0.5, PENALTY.ballZ + (PENALTY.goalZ - PENALTY.ballZ) * flown];
+      if (g.result === 'goal') {
+        [y, z] = [Math.max(0.34, shot.y - after * after * 7), PENALTY.goalZ - 0.6];
+        show(P.star, shot.x, shot.y + 0.6 + after, PENALTY.goalZ + 0.5, 1 + after, 1 - after / PENALTY.recover);
+        T.headRx = 0.3; // beaten
+        T.eyes = CLOSED;
+        T.mouth = 0;
+      } else if (g.result === 'save') {
+        [x, y, z] = [shot.x + side * after * 1.5, Math.max(0.34, shot.y + after * 2 - after * after * 7), PENALTY.goalZ + 1.2 + after * 3];
+        T.mouth = 0.9;
+        T.eyes = CLOSED;
+      } else if (g.result === 'miss') {
+        [x, y, z] = [shot.x * (1 + after), shot.y + after * 2, PENALTY.goalZ - after * 6];
+      }
+      show(P.football, x, y, z, 0.34);
+      P.football.rotation.x = shot.t * 14;
+      break;
+    }
+
+    case 'piano-game': {
+      const fx = v.game?.fx;
+      // Swaying along, arms out like a conductor.
+      T.rz = Math.sin(time * 3) * 0.04;
+      T.armL = -1.4 + Math.sin(time * 3) * 0.3;
+      T.armR = 1.4 + Math.sin(time * 3) * 0.3;
+      if (fx?.kind === 'note' && fx.t < 0.45) {
+        const ring = 1 - fx.t / 0.45;
+        const across = fx.key - 3.5; // low notes to one side, high to the other
+        T.mouth = 0.1 + 0.8 * ring;
+        T.headRz = -across * 0.05;
+        T.headRx = -0.12 * ring;
+        T.squash = -0.05 * ring;
+        T.eyes = fx.right ? CLOSED : 1;
+        show(P.notes[fx.key % 2], across * 0.45, 4.4 + fx.t * 2, 1, 0.7, ring);
+      }
+      break;
+    }
+
     case 'pop-game': {
       const g = v.game;
       if (!g) break;
@@ -908,7 +997,7 @@ function pose(m, v, dt, snap) {
 
   m.root.position.set(S.x.x, S.y.x, S.z.x);
   m.root.rotation.set(S.rx.x, S.ry.x, S.rz.x);
-  m.root.scale.set(1 + squash * 0.5, 1 - squash, 1 + squash * 0.5);
+  m.root.scale.set(1 + squash * 0.5, 1 - squash, 1 + squash * 0.5).multiplyScalar(S.size.x);
   m.head.rotation.set(S.headRx.x + limit(rise * 0.03, 0.15), S.headRy.x, S.headRz.x - limit(slide * 0.05, 0.2));
   m.armL.rotation.set(S.armLx.x, 0, S.armL.x - armLift);
   m.armR.rotation.set(S.armRx.x, 0, S.armR.x + armLift);
@@ -1114,6 +1203,15 @@ export function createPetView(container, pet) {
     // Call `fn(dt)` before every frame is drawn.
     setTicker(fn) {
       ticker = fn;
+    },
+    // Where a line from this screen point meets an upright wall `z` units from
+    // the pet's home spot: { x, y } in the pet's own units.
+    aim(clientX, clientY, z) {
+      const rect = canvas.getBoundingClientRect();
+      const point = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(point, camera);
+      const hit = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -z), new THREE.Vector3());
+      return hit ? { x: hit.x, y: hit.y } : { x: 0, y: 0 };
     },
     // How far left or right of the pet's home spot this screen point is, in the pet's own units.
     worldX(clientX) {
