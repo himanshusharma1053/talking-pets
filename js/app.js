@@ -248,6 +248,11 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// iPhones ignore the "no zoom" page setting, so block pinch and double-tap zoom here.
+for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+}
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
