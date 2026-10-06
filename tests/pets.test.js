@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PETS, ZONES, findPet, renderPet } from '../js/pets.js';
+import { PETS, findPet } from '../js/pets.js';
+import { ACTIONS, REACTIONS, CUES, ACCESSORIES, DIZZY_WINDOW_MS, headPoke } from '../js/actions.js';
 
 test('there are several pets with unique ids and names', () => {
   assert.ok(PETS.length >= 4);
@@ -8,26 +9,58 @@ test('there are several pets with unique ids and names', () => {
   assert.equal(new Set(PETS.map((p) => p.name)).size, PETS.length);
 });
 
-test('every pet has a voice, a pitch and a food', () => {
+test('every pet has a voice, a pitch, a food and all its colours', () => {
   for (const pet of PETS) {
     assert.ok(pet.pitch > 0.5 && pet.pitch < 2.5, pet.id);
     assert.ok(pet.voice.pitch > 0, pet.id);
-    assert.ok(pet.food, pet.id);
-  }
-});
-
-test('every pet drawing has all the tappable zones and animated parts', () => {
-  for (const pet of PETS) {
-    const svg = renderPet(pet);
-    for (const zone of ZONES) assert.ok(svg.includes(`data-zone="${zone}"`), `${pet.id} ${zone}`);
-    for (const part of ['mouth-open', 'eyes-open', 'eyes-closed', 'arm-right', 'prop-food', 'prop-milk', 'prop-zzz']) {
-      assert.ok(svg.includes(part), `${pet.id} ${part}`);
+    assert.ok(pet.food && pet.emoji, pet.id);
+    for (const part of ['fur', 'dark', 'belly', 'limb', 'inner', 'nose']) {
+      assert.match(pet.colors[part], /^#[0-9a-f]{6}$/, `${pet.id} ${part}`);
     }
-    assert.ok(!svg.includes('undefined'), pet.id);
   }
 });
 
 test('findPet falls back to the first pet', () => {
   assert.equal(findPet('dog').id, 'dog');
   assert.equal(findPet('dragon'), PETS[0]);
+});
+
+test('every action and reaction has a duration and a caption', () => {
+  for (const [name, entry] of Object.entries({ ...ACTIONS, ...REACTIONS })) {
+    assert.ok(entry.ms > 0, name);
+    assert.ok(entry.text, name);
+  }
+});
+
+test('sound cues happen before their action ends', () => {
+  assert.ok(CUES.burp * 1000 < ACTIONS.milk.ms);
+  assert.ok(CUES.toot * 1000 < ACTIONS.toot.ms);
+  assert.ok(CUES.pieHit * 1000 < ACTIONS.pie.ms);
+  assert.ok(CUES.ballHit * 1000 < ACTIONS.ball.ms);
+});
+
+test('dress-up starts with nothing on', () => {
+  assert.equal(ACCESSORIES[0], 'none');
+  assert.equal(new Set(ACCESSORIES).size, ACCESSORIES.length);
+});
+
+test('three quick head pokes make the pet dizzy', () => {
+  let taps = [];
+  let zone;
+  ({ taps, zone } = headPoke(taps, 0));
+  assert.equal(zone, 'head');
+  ({ taps, zone } = headPoke(taps, 400));
+  assert.equal(zone, 'head');
+  ({ taps, zone } = headPoke(taps, 800));
+  assert.equal(zone, 'dizzy');
+  assert.deepEqual(taps, []);
+});
+
+test('slow head pokes never make the pet dizzy', () => {
+  let taps = [];
+  let zone;
+  for (let i = 0; i < 6; i++) {
+    ({ taps, zone } = headPoke(taps, i * DIZZY_WINDOW_MS));
+    assert.equal(zone, 'head');
+  }
 });

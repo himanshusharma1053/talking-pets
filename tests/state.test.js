@@ -27,21 +27,22 @@ test('a tap interrupts anything and wakes a sleeping pet', () => {
   assert.equal(nextState('sleeping', 'tap'), 'idle');
 });
 
-test('feeding and milk work unless the pet is asleep', () => {
-  assert.equal(nextState('idle', 'feed'), 'eating');
-  assert.equal(nextState('talking', 'milk'), 'drinking');
-  assert.equal(nextState('sleeping', 'feed'), null);
-  assert.equal(nextState('sleeping', 'milk'), null);
+test('buttons start an action unless the pet is asleep', () => {
+  assert.equal(nextState('idle', 'act'), 'acting');
+  assert.equal(nextState('talking', 'act'), 'acting');
+  assert.equal(nextState('acting', 'act'), 'acting');
+  assert.equal(nextState('sleeping', 'act'), null);
 });
 
 test('sleep toggles', () => {
   assert.equal(nextState('idle', 'sleep'), 'sleeping');
-  assert.equal(nextState('eating', 'sleep'), 'sleeping');
+  assert.equal(nextState('acting', 'sleep'), 'sleeping');
   assert.equal(nextState('sleeping', 'sleep'), 'idle');
 });
 
 test('done only ends timed activities', () => {
-  assert.equal(nextState('eating', 'done'), 'idle');
+  assert.equal(nextState('acting', 'done'), 'idle');
+  assert.equal(nextState('reacting', 'done'), 'idle');
   assert.equal(nextState('sleeping', 'done'), null);
   assert.equal(nextState('idle', 'done'), null);
 });

@@ -1,6 +1,13 @@
 # Talking Pets
 
-A pet that listens and repeats what you say in a funny voice. Pick a cat, dog, bunny or panda, poke it, feed it, give it milk, or put it to sleep. No ads, no tracking, and nothing you say leaves the device.
+A 3D pet that listens and repeats what you say in a funny voice. Pick a cat, dog, bunny or panda. No ads, no tracking, and nothing you say leaves the device.
+
+## What the pet does
+
+- **Talks back:** say something and it repeats it in its own voice.
+- **Reacts to pokes:** head, belly, tail and feet each do something different. Poke the head three times quickly and it gets dizzy.
+- **Buttons:** feed, milk (with a burp), ball, pie in the face, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
+- **Watches you:** its head and eyes follow your finger or mouse.
 
 ## Run it
 
@@ -20,9 +27,12 @@ npm test
 
 ## Layout
 
-- `js/pets.js` — the pets (name, voice pitch, colours) and their SVG drawings. Add a pet here.
+- `js/pets.js` — the pets: name, voice pitch, colours.
+- `js/pet3d.js` — builds each pet's 3D model and animates it.
+- `js/actions.js` — the buttons and pokes: how long each lasts and its caption.
 - `js/state.js` — what the pet is doing and which events change it.
 - `js/vad.js` — detects when you start and stop talking.
 - `js/voice.js` — microphone capture and pitched playback.
 - `js/sounds.js` — synthesised sound effects.
 - `js/app.js` — wires the screen to everything above.
+- `vendor/` — a copy of [three.js](https://threejs.org) (MIT licence), so the app needs no build step and works offline.
