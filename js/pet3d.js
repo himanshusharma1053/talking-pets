@@ -2,12 +2,56 @@
 
 import * as THREE from '../vendor/three.module.js';
 import { RoomEnvironment } from '../vendor/RoomEnvironment.js';
-import { CUES } from './actions.js';
+import { ACTIONS, CUES } from './actions.js';
+import { FOODS, YUCKS, POP } from './games.js';
 
 const CLOSED = 0.08; // eye height when shut
 const TWO_PI = Math.PI * 2;
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const arc = (p) => (p <= 0 || p >= 1 ? 0 : 4 * p * (1 - p)); // 0 → 1 → 0, for jumps
+
+// How each moving part chases the pose it is asked for: [speed, bounce].
+// Speed is how quickly it gets there. Bounce below 1 lets it overshoot a little
+// and settle, which is what makes the pet feel soft instead of mechanical.
+const FOLLOW = [40, 1]; // keeps up closely with no bounce, for things driven by exact paths
+const SPRINGS = {
+  headRx: [22, 0.5],
+  headRy: [22, 0.5],
+  headRz: [22, 0.5],
+  armL: [20, 0.5],
+  armR: [20, 0.5],
+  armLx: [26, 0.6],
+  armRx: [26, 0.6],
+  squash: [24, 0.35],
+  rz: [16, 0.5],
+  eyeSize: [24, 0.5],
+  cheek: [22, 0.45],
+  eyes: [50, 1],
+  mouth: [45, 0.85],
+  pupilX: [30, 0.8],
+  pupilY: [30, 0.8],
+  wag: [8, 1],
+  ears: [13, 0.25], // floppy
+};
+const limit = (value, most) => Math.max(-most, Math.min(most, value));
+
+// Move every spring a step closer to its target. Small sub-steps keep it stable.
+function chase(springs, targets, dt) {
+  const steps = Math.max(1, Math.ceil(dt / 0.008));
+  const h = dt / steps;
+  for (const key in targets) {
+    const [speed, bounce] = SPRINGS[key] ?? FOLLOW;
+    const spring = springs[key];
+    for (let i = 0; i < steps; i++) {
+      spring.v += (speed * speed * (targets[key] - spring.x) - 2 * bounce * speed * spring.v) * h;
+      spring.x += spring.v * h;
+    }
+  }
+}
+
+// The arm angle at which food and drink are held up to the face.
+const HOLD_ANGLE = 2.0;
+const ACTIONS_MILK_END = ACTIONS.milk.ms / 1000;
 
 // The swing hangs from a point above the top of the screen.
 const SWING_TOP = 6.3;
@@ -15,6 +59,9 @@ const SWING_LENGTH = 6;
 
 // Where boxing pads appear around the pet: [x, y], all a little in front of it.
 const PAD_SLOTS = [[-1.2, 3.6], [1.2, 3.6], [-1.3, 2.4], [1.3, 2.4], [-1.15, 1.1], [1.15, 1.1]];
+
+// How far the camera pulls back for each game (0 = the normal view).
+const GAME_ZOOM = { swing: 1, catch: 0.6, pop: 0.35 };
 
 const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
 
@@ -37,16 +84,9 @@ function textSprite(text, color) {
 
 function buildPet(pet) {
   const c = pet.colors;
-  // Sheen gives the soft, velvety edge of a plush toy without washing out its colour.
-  const plush = (color) =>
-    new THREE.MeshPhysicalMaterial({
-      color,
-      roughness: 0.7,
-      sheen: 0.35,
-      sheenRoughness: 0.35,
-      sheenColor: new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.15),
-    });
-  const glossy = (color) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.05 });
+  // Soft, matte fur. Kept simple so it draws quickly on phones and tablets.
+  const plush = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.78 });
+  const glossy = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.06 });
   const matte = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
   const flat = (color, opacity = 1) => new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity });
   const M = {
@@ -68,7 +108,7 @@ function buildPet(pet) {
     gold: new THREE.MeshStandardMaterial({ color: '#ffc531', roughness: 0.3, metalness: 0.35, emissive: '#6b4a00' }),
   };
 
-  const sphere = new THREE.SphereGeometry(1, 48, 32);
+  const sphere = new THREE.SphereGeometry(1, 32, 22);
   const add = (parent, mesh, pos = [0, 0, 0], rot = [0, 0, 0]) => {
     mesh.position.set(...pos);
     mesh.rotation.set(...rot);
@@ -123,7 +163,7 @@ function buildPet(pet) {
   const outline = [[0.02, 0.3], [0.5, 0.33], [0.8, 0.62], [0.88, 1.0], [0.8, 1.45], [0.62, 1.85], [0.45, 2.08], [0.02, 2.2]];
   const profile = new THREE.SplineCurve(outline.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(36);
   for (const point of profile) point.x = Math.max(0.01, point.x);
-  add(torso, new THREE.Mesh(new THREE.LatheGeometry(profile, 48), M.fur)).scale.z = 0.92; // narrow shoulders, round tummy
+  add(torso, new THREE.Mesh(new THREE.LatheGeometry(profile, 36), M.fur)).scale.z = 0.92; // narrow shoulders, round tummy
   blob(torso, M.belly, 0.62, [0, 1.02, 0.36], [1.08, 1.2, 0.74]);
   const gloves = [];
   const [armL, armR] = sides((s) => {
@@ -138,6 +178,7 @@ function buildPet(pet) {
   // ----- Head -----
   const head = group(root, [0, 2.0, 0], 'head');
   head.scale.setScalar(1.15); // a big head reads as young and friendly
+  const ears = []; // the ones loose enough to flop about
   blob(head, M.fur, 0.95, [0, 0.8, 0], [1.08, 0.95, 0.95]);
 
   if (pet.id === 'cat') {
@@ -148,13 +189,14 @@ function buildPet(pet) {
     for (const x of [-0.2, 0, 0.2]) blob(head, M.dark, 0.05, [x, 1.5 - Math.abs(x) * 0.2, 0.6], [0.9, 3.2, 1], [-0.85, 0, 0]);
   }
   if (pet.id === 'dog') {
-    sides((s) => blob(head, M.dark, 0.3, [s * 1.0, 0.72, 0.05], [0.5, 1.5, 0.9], [0, 0, s * 0.22]));
+    sides((s) => ears.push(blob(head, M.dark, 0.3, [s * 1.0, 0.72, 0.05], [0.5, 1.5, 0.9], [0, 0, s * 0.22])));
     blob(head, M.dark, 0.41, [0.42, 0.98, 0.56], [1, 1.1, 0.5]);
   }
   if (pet.id === 'bunny') {
     sides((s) => {
       const ear = group(head, [s * 0.34, 1.45, 0]);
       ear.rotation.z = -s * 0.13;
+      ears.push(ear);
       add(ear, new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.95, 8, 20), M.fur), [0, 0.62, 0]).scale.z = 0.55;
       add(ear, new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.8, 8, 20), M.inner), [0, 0.62, 0.08]).scale.z = 0.4;
     });
@@ -203,7 +245,7 @@ function buildPet(pet) {
     blob(head, M.belly, 0.36 * big, [0, 0.55, 0.72], [1.25, 0.85, 0.8]);
     blob(head, M.nose, 0.1 * big, [0, 0.69, 0.72 + 0.28 * big], [1.35, 0.9, 0.8]);
   }
-  sides((s) => blob(head, flat('#ff8fa0', 0.38), 0.15, [s * 0.66, 0.52, 0.6], [1, 0.8, 0.35], [0, s * 0.6, 0]));
+  const cheeks = sides((s) => blob(head, flat('#ff8fa0', 0.38), 0.15, [s * 0.66, 0.52, 0.6], [1, 0.8, 0.35], [0, s * 0.6, 0]));
 
   if (pet.id === 'cat' || pet.id === 'bunny') {
     const whisker = new THREE.CylinderGeometry(0.008, 0.008, 0.62);
@@ -276,6 +318,73 @@ function buildPet(pet) {
 
   for (const item of Object.values(accessories)) item.visible = false;
 
+  // ----- What the pet eats and drinks, held in its right paw -----
+  // Built upright for the angle the arm is held at while eating.
+  const cylinder = (parent, material, radius, height, pos, rot) =>
+    add(parent, new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 20), material), pos, rot);
+  const meal = group(armR, [0, -1.02, 0.08]);
+  meal.rotation.x = HOLD_ANGLE;
+  const fish = (color) => {
+    const skin = matte(color);
+    blob(meal, skin, 0.2, [0.04, 0, 0], [1.5, 0.8, 0.5]);
+    cone(meal, skin, 0.15, 0.22, [-0.34, 0, 0], [0, 0, -Math.PI / 2]);
+    blob(meal, M.pupil, 0.03, [0.22, 0.04, 0.09]);
+    return color;
+  };
+  const menu = {
+    cat: () => fish('#6fb3d9'),
+    penguin: () => fish('#ff9e80'),
+    dog: () => {
+      const white = matte('#fff4dc');
+      cylinder(meal, white, 0.055, 0.4, [0, 0, 0], [0, 0, Math.PI / 2]);
+      for (const x of [-0.2, 0.2]) for (const y of [-0.06, 0.06]) blob(meal, white, 0.09, [x, y, 0]);
+      return '#fff4dc';
+    },
+    bunny: () => {
+      cone(meal, matte('#ff8a1f'), 0.12, 0.46, [0, -0.04, 0], [Math.PI, 0, 0]);
+      for (const x of [-0.07, 0, 0.07]) cone(meal, matte('#4caf50'), 0.045, 0.2, [x, 0.28, 0], [0, 0, -x * 4]);
+      return '#ff8a1f';
+    },
+    panda: () => {
+      const cane = matte('#7bc043');
+      cylinder(meal, cane, 0.07, 0.5, [0, 0, 0]);
+      for (const y of [-0.1, 0.1]) add(meal, new THREE.Mesh(new THREE.TorusGeometry(0.072, 0.014, 6, 16), matte('#4f8f1f')), [0, y, 0], [Math.PI / 2, 0, 0]);
+      blob(meal, cane, 0.1, [0.14, 0.2, 0], [1.6, 0.3, 0.6], [0, 0, 0.6]);
+      return '#7bc043';
+    },
+    fox: () => {
+      const grape = glossy('#7e3ff2');
+      [[0, 0.1, 0], [-0.09, 0.08, 0.03], [0.09, 0.08, 0.03], [-0.05, -0.03, 0.05], [0.05, -0.03, 0.05], [0, -0.13, 0.03], [0, 0.02, 0.1]].forEach((spot) => blob(meal, grape, 0.085, spot));
+      cylinder(meal, matte('#6b4a2b'), 0.015, 0.12, [0, 0.22, 0]);
+      return '#7e3ff2';
+    },
+    monkey: () => {
+      add(meal, new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.07, 10, 20, Math.PI * 0.75), matte('#ffd633')), [0, -0.12, 0], [0, 0, 0.4]);
+      return '#ffd633';
+    },
+    unicorn: () => {
+      cylinder(meal, M.white, 0.02, 0.4, [0, -0.16, 0]);
+      blob(meal, glossy('#ff5fa8'), 0.2, [0, 0.14, 0], [1, 1, 0.35]);
+      add(meal, new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 6, 20), M.white), [0, 0.14, 0.06]);
+      return '#ff5fa8';
+    },
+  };
+  const crumbColor = menu[pet.id]();
+  const crumbs = Array.from({ length: 6 }, () => blob(root, matte(crumbColor), 0.04, [0, 0, 0]));
+
+  const glass = group(armR, [0, -1.0, 0.08]);
+  glass.rotation.x = HOLD_ANGLE;
+  glass.scale.setScalar(1.3);
+  const tumbler = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.17, 0.14, 0.42, 24, 1, true),
+    new THREE.MeshStandardMaterial({ color: '#dff3ff', transparent: true, opacity: 0.35, roughness: 0.05, side: THREE.DoubleSide }),
+  );
+  add(glass, tumbler, [0, 0.05, 0]).castShadow = false;
+  const milkShape = new THREE.CylinderGeometry(0.15, 0.13, 0.34, 24);
+  milkShape.translate(0, 0.17, 0); // so the milk drains from the top down
+  const milk = add(glass, new THREE.Mesh(milkShape, M.white), [0, -0.15, 0]);
+  const moustache = blob(head, M.white, 0.13, [0, 0.5, mouthZ + 0.03], [1.6, 0.45, 0.5]);
+
   // ----- Props -----
   const stars = [0, 1, 2].map(() => textSprite('⭐'));
   root.add(...stars);
@@ -284,8 +393,6 @@ function buildPet(pet) {
   const ball = new THREE.Mesh(sphere, glossy('#e63946'));
   ball.castShadow = true;
   const P = {
-    food: textSprite(pet.food),
-    milk: textSprite('🥛'),
     cloud: textSprite('💨'),
     pie: textSprite('🥧'),
     notes: [textSprite('🎵'), textSprite('🎶')],
@@ -293,7 +400,6 @@ function buildPet(pet) {
     stars,
     ball,
   };
-  P.milk.material.rotation = 0.6;
 
   const wood = matte('#b5793f');
   P.swing = group(props, [0, SWING_TOP, 0]);
@@ -320,39 +426,75 @@ function buildPet(pet) {
   add(P.trampoline, new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.1, 40), matte('#3a86ff')), [0, 0.3, 0]).receiveShadow = true;
   add(P.trampoline, new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.1, 10, 40), M.line), [0, 0.3, 0], [Math.PI / 2, 0, 0]);
 
-  const soap = new THREE.MeshStandardMaterial({ color: '#cfefff', transparent: true, opacity: 0.45, roughness: 0.05 });
-  P.bubbles = Array.from({ length: 7 }, () => new THREE.Mesh(sphere, soap));
+  // Bubbles for the popping game. Each one is tappable.
+  P.soap = new THREE.MeshStandardMaterial({ color: '#bfe9ff', transparent: true, opacity: 0.5, roughness: 0.05 });
+  P.goldSoap = new THREE.MeshStandardMaterial({ color: '#ffcf33', transparent: true, opacity: 0.75, roughness: 0.05, emissive: '#7a5200' });
+  P.bubbles = Array.from({ length: POP.pool }, (_, i) => {
+    const bubble = new THREE.Mesh(sphere, P.soap);
+    bubble.userData.zone = `bubble${i}`;
+    return bubble;
+  });
   P.gloves = gloves;
 
-  props.add(P.food, P.milk, P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles, P.pow, P.sparkle, P.star, P.bell, ...P.confetti);
+  // Things that fall in the catching game: one picture per kind, shared by a few sprites.
+  P.icons = Object.fromEntries([...FOODS, ...YUCKS].map((icon) => [icon, textSprite(icon).material]));
+  P.falling = Array.from({ length: 8 }, () => {
+    const sprite = new THREE.Sprite(P.icons[FOODS[0]]);
+    sprite.visible = false;
+    return sprite;
+  });
+  P.yuck = textSprite('🤢');
 
-  return { root, props, head, armL, armR, tail, eyes, pupils, mouth, smile, cream, accessories, P, hideable: [...props.children, ...stars, ...gloves, cream] };
+  props.add(P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles, ...P.falling, P.yuck, P.pow, P.sparkle, P.star, P.bell, ...P.confetti);
+
+  for (const ear of ears) ear.userData.rest = ear.rotation.z;
+  for (const cheek of cheeks) cheek.userData.rest = cheek.scale.clone();
+
+  return {
+    root, props, head, armL, armR, tail, eyes, pupils, mouth, smile, cream, accessories, P,
+    ears, cheeks, meal, crumbs, glass, milk, moustache,
+    hideable: [...props.children, ...stars, ...gloves, ...crumbs, cream, meal, glass, moustache],
+  };
 }
 
 // Work out where every part should be for the current activity, then ease towards it.
 function pose(m, v, dt, snap) {
   const { t, time } = v;
   const P = m.P;
+  const calm = v.state === 'idle';
+
+  // Blinks come at uneven intervals, now and then two in a row.
+  if (time >= v.blinkAt + 0.13) v.blinkAt = time + (Math.random() < 0.2 ? 0.2 : 2 + Math.random() * 3.5);
+  // Every so often the eyes dart somewhere else for a moment.
+  if (time >= v.glanceUntil) {
+    const away = Math.random() < 0.5;
+    v.glance = { x: away ? (Math.random() * 2 - 1) * 0.045 : 0, y: away ? (Math.random() * 2 - 1) * 0.02 : 0 };
+    v.glanceUntil = time + 0.7 + Math.random() * 2.5;
+  }
   const T = {
+    x: 0,
     y: 0,
     ry: 0,
-    rz: 0,
-    squash: Math.sin(time * 2.2) * 0.012, // breathing
+    rz: calm ? Math.sin(time * 0.7) * 0.012 : 0, // shifting its weight
+    squash: Math.sin(time * 2.2) * 0.014, // breathing
     headRx: -v.look.y * 0.2,
-    headRy: v.look.x * 0.4,
-    headRz: 0,
+    headRy: v.look.x * 0.4 + (calm ? Math.sin(time * 0.53) * 0.06 + Math.sin(time * 1.31) * 0.025 : 0),
+    headRz: calm ? Math.sin(time * 0.41) * 0.03 : 0,
     z: 0,
     rx: 0,
     armL: -0.35,
     armR: 0.35,
     armLx: 0, // arms swinging forwards, for punches
     armRx: 0,
-    eyes: time % 4.2 > 4.05 ? CLOSED : 1, // blink
+    eyes: time >= v.blinkAt ? CLOSED : 1,
     eyeSize: 1,
+    cheek: 1,
     mouth: 0,
     wag: 1,
-    pupilX: v.look.x * 0.05,
-    pupilY: v.look.y * 0.04,
+    pupilX: v.look.x * 0.05 + (calm ? v.glance.x : 0),
+    pupilY: v.look.y * 0.04 + (calm ? v.glance.y : 0),
+    // Loose ears swing the opposite way to whatever the head just did.
+    ears: v.cur ? limit(-(v.cur.headRz.v * 0.06 + v.cur.headRy.v * 0.04 + v.cur.x.v * 0.05), 0.5) : 0,
   };
 
   for (const item of m.hideable) item.visible = false;
@@ -441,26 +583,102 @@ function pose(m, v, dt, snap) {
 
     // ----- Buttons -----
     case 'feed': {
-      const eaten = clamp01((t - 0.5) / 1.8);
-      show(P.food, 0, 0.9 + clamp01(t / 0.5) * 1.2, 1.4, 0.85 * (1 - eaten * 0.85));
-      if (t > 0.5 && t < 2.4) T.mouth = 0.25 + 0.75 * Math.abs(Math.sin(t * 10));
-      if (t >= 2.4) T.eyes = CLOSED;
+      const bites = CUES.bites;
+      const taken = bites.filter((at) => t >= at).length;
+      const next = bites[taken]; // undefined once it has all gone
+      const sinceBite = taken ? t - bites[taken - 1] : Infinity;
+
+      // The paw brings the food up, and the pet can't take its eyes off it.
+      m.meal.visible = taken < bites.length;
+      m.meal.scale.setScalar(([1.6, 1.15, 0.7][taken] ?? 0) * Math.min(1, t / 0.25)); // smaller with every bite
+      if (t < bites.at(-1) + 0.3) {
+        T.armRx = -HOLD_ANGLE;
+        T.armR = -0.2;
+      }
+      T.headRy = 0.3;
+      T.headRx = 0.12;
+      T.pupilX = 0.04;
+      T.pupilY = -0.03;
+
+      if (next !== undefined && next - t < 0.3) {
+        // Lean in with the mouth opening wide; it snaps shut on the bite.
+        const lunge = 1 - (next - t) / 0.3;
+        T.mouth = lunge;
+        T.headRx = 0.12 + 0.22 * lunge;
+        T.headRy = 0.3 + 0.08 * lunge;
+        T.eyeSize = 1.15;
+      } else if (sinceBite < 0.55) {
+        // Chew: cheeks full, jaw working, eyes shut with pleasure.
+        T.cheek = 1.5;
+        T.headRx = 0.08 + Math.sin(sinceBite * 22) * 0.05;
+        T.squash = Math.sin(sinceBite * 22) * 0.02;
+        T.eyes = CLOSED;
+      }
+      if (taken === bites.length) {
+        if (t < CUES.gulp + 0.25) {
+          if (t > CUES.gulp - 0.15) T.headRx = -0.22; // gulp
+          T.eyes = CLOSED;
+        } else {
+          // A happy little hop once it has gone down.
+          T.eyes = CLOSED;
+          T.mouth = 0.5;
+          T.headRy = 0;
+          T.y = arc((t - CUES.gulp - 0.25) / 0.45) * 0.3;
+          T.armL = -1.3;
+          T.armR = 1.3;
+        }
+      }
+
+      // Crumbs fly from each bite.
+      m.crumbs.forEach((crumb, i) => {
+        const since = sinceBite - (i % 2) * 0.03;
+        if (since < 0 || since > 0.5) return;
+        const angle = i * 1.1 + taken;
+        crumb.visible = true;
+        crumb.position.set(0.45 + Math.cos(angle) * since * 1.4, 2.25 + Math.sin(angle) * since * 0.6 + since * 1.5 - since * since * 7, 1.2 + since * 0.5);
+      });
       break;
     }
 
-    case 'milk':
-      if (t < CUES.burp) {
-        show(P.milk, 0.42, 2.45, 1.35, 0.8);
-        T.headRx = -0.28;
-        T.mouth = 0.35;
-        T.armR = 1.9;
+    case 'milk': {
+      const drinkEnd = CUES.burp - 0.45;
+      if (t < drinkEnd) {
+        // Glass up, head back, gulping while the milk goes down.
+        const drunk = clamp01((t - 0.35) / (drinkEnd - 0.45));
+        m.glass.visible = true;
+        m.milk.scale.y = Math.max(0.02, 1 - drunk);
+        T.armRx = -HOLD_ANGLE - 0.45 * drunk; // tips further as it empties
+        T.armR = -0.3;
+        T.headRy = 0.25;
+        T.headRx = -0.1 - 0.22 * drunk + Math.sin(t * 14) * 0.03;
+        T.squash = Math.sin(t * 14) * 0.015;
+        T.eyes = t > 0.4 ? CLOSED : 1;
+        T.mouth = 0.2;
       } else {
-        T.mouth = 1;
-        T.eyeSize = 1.25;
-        T.headRx = 0.12;
-        T.squash = -0.05 * Math.exp(-(t - CUES.burp) * 4);
+        const since = t - CUES.burp;
+        m.moustache.visible = true;
+        m.moustache.scale.x = 0.208 * clamp01((ACTIONS_MILK_END - t) / 0.4); // licked away at the end
+        if (since < 0) {
+          // Uh oh, something is coming…
+          T.squash = -0.06;
+          T.eyeSize = 1.25;
+          T.headRx = -0.12;
+        } else if (since < 0.5) {
+          T.mouth = 1;
+          T.eyeSize = 1.3;
+          T.headRx = 0.2;
+          T.squash = 0.1 * Math.exp(-since * 8);
+        } else {
+          // Embarrassed: paw over the mouth.
+          T.eyes = CLOSED;
+          T.mouth = 0.5;
+          T.armRx = -1.9;
+          T.armR = -0.55;
+          T.squash = Math.sin(t * 30) * 0.03;
+        }
       }
       break;
+    }
 
     case 'ball': {
       const u = t - CUES.ballHit;
@@ -587,16 +805,60 @@ function pose(m, v, dt, snap) {
       break;
     }
 
-    case 'bubbles':
-      T.mouth = 0.3;
-      T.headRx = -0.12;
-      T.armR = 1.6;
-      P.bubbles.forEach((bubble, i) => {
-        const p = (t - 0.2 - i * 0.35) / 2.1;
-        if (p <= 0 || p >= 1) return;
-        show(bubble, Math.sin(i * 2.3) * 1.3 * p + Math.sin(t * 3 + i) * 0.08, 2.45 + p * 2.4, 1.3 + Math.cos(i * 1.7) * 0.4 * p, 0.1 + p * 0.22 + (i % 3) * 0.03);
+    case 'catch-game': {
+      const g = v.game;
+      if (!g) break;
+      const fx = g.fx;
+      T.x = g.petX;
+      T.rz = (g.petX - g.targetX) * 0.12; // lean into the run
+      T.armL = -2.3;
+      T.armR = 2.3;
+      T.mouth = 0.7;
+      T.headRx = -0.25;
+      T.pupilY = 0.05;
+      T.wag = 3;
+      g.items.slice(0, P.falling.length).forEach((item, i) => {
+        P.falling[i].material = P.icons[item.icon];
+        show(P.falling[i], item.x, item.y, 0.7, 0.85);
       });
+      if (fx?.kind === 'catch' && fx.t < 0.4) {
+        T.mouth = Math.abs(Math.sin(fx.t * 25));
+        T.eyes = CLOSED;
+        show(P.sparkle, g.petX, 4.3 + fx.t, 1.2, 0.8, 1 - fx.t / 0.4);
+      }
+      if (fx?.kind === 'yuck') {
+        T.eyes = CLOSED;
+        T.mouth = 0.5;
+        T.headRy = Math.sin(fx.t * 30) * 0.4;
+        show(P.yuck, g.petX, 4.9, 0.8, 0.9, 1 - fx.t / 0.6);
+      }
       break;
+    }
+
+    case 'pop-game': {
+      const g = v.game;
+      if (!g) break;
+      const fx = g.fx;
+      T.mouth = 0.25 + 0.25 * Math.sin(time * 6) ** 2; // puffing
+      T.headRx = -0.1;
+      T.armR = 1.7;
+      for (const bubble of g.bubbles) {
+        const mesh = P.bubbles[bubble.id % P.bubbles.length];
+        mesh.material = bubble.golden ? P.goldSoap : P.soap;
+        show(mesh, bubble.x, bubble.y, 1.2, bubble.size * Math.min(1, 0.3 + bubble.age * 2));
+      }
+      const newest = g.bubbles.at(-1);
+      if (newest) {
+        T.pupilX = Math.max(-0.06, Math.min(0.06, newest.x * 0.04));
+        T.pupilY = 0.04;
+      }
+      if (fx?.kind === 'pop' && fx.t < 0.3) {
+        show(P.pow, fx.x, fx.y, 1.4, 0.5 + fx.t * 2.5, 1 - fx.t / 0.3);
+        T.eyes = CLOSED;
+        T.mouth = 0.8;
+      }
+      break;
+    }
 
     case 'trampoline': {
       const count = Math.floor(t / CUES.bounce);
@@ -631,23 +893,35 @@ function pose(m, v, dt, snap) {
     }
   }
 
-  const C = v.cur ?? (v.cur = { ...T });
-  const ease = snap ? 1 : 1 - Math.exp(-dt * 22);
-  for (const key in T) C[key] += (T[key] - C[key]) * ease;
+  const S = v.cur ?? (v.cur = Object.fromEntries(Object.keys(T).map((key) => [key, { x: T[key], v: 0 }])));
+  if (snap) for (const key in T) Object.assign(S[key], { x: T[key], v: 0 });
+  else chase(S, T, dt);
 
-  m.root.position.set(0, C.y, C.z);
-  m.root.rotation.set(C.rx, C.ry, C.rz);
-  m.root.scale.set(1 + C.squash * 0.5, 1 - C.squash, 1 + C.squash * 0.5);
-  m.head.rotation.set(C.headRx, C.headRy, C.headRz);
-  m.armL.rotation.set(C.armLx, 0, C.armL);
-  m.armR.rotation.set(C.armRx, 0, C.armR);
-  v.wagPhase += dt * 6 * C.wag;
-  m.tail.rotation.z = Math.sin(v.wagPhase) * 0.16;
-  for (const eye of m.eyes) eye.scale.set(C.eyeSize, C.eyes * C.eyeSize, 1);
-  for (const pupil of m.pupils) pupil.position.set(C.pupilX, C.pupilY, 0.09);
-  m.mouth.visible = C.mouth > 0.08;
+  // Follow-through: the body stretches when it moves fast and squashes when it
+  // lands; the head, arms, ears and tail trail a little behind the body.
+  const rise = S.y.v;
+  const slide = S.x.v;
+  if (v.airborne && S.y.x < 0.03 && rise < -1.5) S.squash.v += Math.min(4, -rise * 0.6);
+  v.airborne = S.y.x > 0.05;
+  const squash = S.squash.x - Math.min(0.14, Math.abs(rise) * 0.03);
+  const armLift = limit(-rise * 0.05, 0.4);
+
+  m.root.position.set(S.x.x, S.y.x, S.z.x);
+  m.root.rotation.set(S.rx.x, S.ry.x, S.rz.x);
+  m.root.scale.set(1 + squash * 0.5, 1 - squash, 1 + squash * 0.5);
+  m.head.rotation.set(S.headRx.x + limit(rise * 0.03, 0.15), S.headRy.x, S.headRz.x - limit(slide * 0.05, 0.2));
+  m.armL.rotation.set(S.armLx.x, 0, S.armL.x - armLift);
+  m.armR.rotation.set(S.armRx.x, 0, S.armR.x + armLift);
+  v.wagPhase += dt * 6 * S.wag.x;
+  m.tail.rotation.set(limit(-rise * 0.06, 0.5), 0, Math.sin(v.wagPhase) * 0.16 - limit(slide * 0.06, 0.3));
+  for (const ear of m.ears) ear.rotation.z = ear.userData.rest + S.ears.x;
+  for (const eye of m.eyes) eye.scale.set(S.eyeSize.x, S.eyes.x * S.eyeSize.x, 1);
+  for (const pupil of m.pupils) pupil.position.set(S.pupilX.x, S.pupilY.x, 0.09);
+  for (const cheek of m.cheeks) cheek.scale.copy(cheek.userData.rest).multiplyScalar(S.cheek.x);
+  const open = Math.max(0, S.mouth.x);
+  m.mouth.visible = open > 0.08;
   m.smile.visible = !m.mouth.visible;
-  m.mouth.scale.set(1 + C.mouth * 0.15, C.mouth, 1);
+  m.mouth.scale.set(1 + open * 0.15, open, 1);
 }
 
 // A soft dark patch under the pet, so it looks planted on the floor.
@@ -669,23 +943,28 @@ function contactShadow() {
   return patch;
 }
 
-function createScene(pet, renderer) {
-  const scene = new THREE.Scene();
-
-  // Light bouncing in from all around, as in a photo studio. This is what makes
-  // the eyes glint and the fur look soft rather than flat.
+// Light bouncing in from all around, as in a photo studio. This is what makes
+// the eyes glint and the fur look soft rather than flat. It is costly to make,
+// so each renderer makes it once and every scene shares it.
+function studioLight(renderer) {
   const studio = new RoomEnvironment();
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(studio, 0.04).texture;
-  scene.environmentIntensity = 0.6;
+  const light = pmrem.fromScene(studio, 0.04).texture;
   pmrem.dispose();
   disposeScene(studio);
+  return light;
+}
+
+function createScene(pet, light) {
+  const scene = new THREE.Scene();
+  scene.environment = light;
+  scene.environmentIntensity = 0.6;
 
   const key = new THREE.DirectionalLight('#fff1dd', 2.0);
   key.position.set(2.5, 9, 5);
   key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
-  Object.assign(key.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 30 });
+  key.shadow.mapSize.set(1024, 1024);
+  Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 30 });
   key.shadow.radius = 6;
   key.shadow.bias = -0.0005;
   scene.add(key);
@@ -723,7 +1002,10 @@ function newRenderer() {
   return renderer;
 }
 
-const newViewState = () => ({ state: 'idle', detail: null, game: null, t: 0, time: 0, mouth: 0, look: { x: 0, y: 0 }, wagPhase: 0, far: 0, cur: null });
+const newViewState = () => ({
+  state: 'idle', detail: null, game: null, t: 0, time: 0, mouth: 0, look: { x: 0, y: 0 },
+  wagPhase: 0, far: 0, cur: null, airborne: false, blinkAt: 2.5, glance: { x: 0, y: 0 }, glanceUntil: 1.5,
+});
 
 function disposeScene(scene) {
   scene.traverse((item) => {
@@ -731,7 +1013,6 @@ function disposeScene(scene) {
     item.material?.map?.dispose();
     item.material?.dispose();
   });
-  scene.environment?.dispose();
 }
 
 // Still pictures of each pet for the picker, as { id: dataURL }.
@@ -739,14 +1020,16 @@ export function renderThumbnails(pets, width = 240, height = 300) {
   const renderer = newRenderer();
   renderer.setSize(width, height, false);
   const images = {};
+  const light = studioLight(renderer);
   for (const pet of pets) {
-    const { scene, camera, model } = createScene(pet, renderer);
+    const { scene, camera, model } = createScene(pet, light);
     frame(camera, width / height);
     pose(model, newViewState(), 0, true);
     renderer.render(scene, camera);
     images[pet.id] = renderer.domElement.toDataURL('image/png');
     disposeScene(scene);
   }
+  light.dispose();
   renderer.dispose();
   renderer.forceContextLoss();
   return images;
@@ -755,8 +1038,10 @@ export function renderThumbnails(pets, width = 240, height = 300) {
 // Put a live, animated pet inside `container`. Throws if 3D is unavailable.
 export function createPetView(container, pet) {
   const renderer = newRenderer();
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  const { scene, camera, model } = createScene(pet, renderer);
+  let sharpness = Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(sharpness);
+  const light = studioLight(renderer);
+  const { scene, camera, model } = createScene(pet, light);
   const canvas = renderer.domElement;
   container.replaceChildren(canvas);
 
@@ -770,7 +1055,7 @@ export function createPetView(container, pet) {
     v.t += dt;
     v.time += dt;
     pose(model, v, dt, snap);
-    const far = v.state === 'playing' && v.detail === 'swing' ? 1 : 0;
+    const far = v.state === 'playing' ? (GAME_ZOOM[v.detail] ?? 0) : 0;
     if (far !== v.far) {
       const next = v.far + (far - v.far) * (1 - Math.exp(-dt * 4));
       v.far = Math.abs(far - next) < 0.002 ? far : next;
@@ -791,10 +1076,24 @@ export function createPetView(container, pet) {
   resize();
   step(0, true);
 
+  // Smooth motion matters more than sharp edges: if frames are taking too long,
+  // draw at a lower resolution. Checked once a second; it never goes back up.
   let last = performance.now();
+  let frames = 0;
+  let since = last;
   renderer.setAnimationLoop((now) => {
-    step(Math.min(0.1, (now - last) / 1000));
+    step(Math.min(0.05, (now - last) / 1000));
     last = now;
+    if (++frames === 60) {
+      const average = (now - since) / frames;
+      if (average > 22 && sharpness > 1) {
+        sharpness = Math.max(1, sharpness - 0.25);
+        renderer.setPixelRatio(sharpness);
+        resize();
+      }
+      frames = 0;
+      since = now;
+    }
   });
 
   return {
@@ -802,7 +1101,7 @@ export function createPetView(container, pet) {
     setState(state, detail = null) {
       Object.assign(v, { state, detail, t: 0 });
       // Forget whole turns left over from a spin, so the pet doesn't unwind them.
-      v.cur.ry = ((((v.cur.ry + Math.PI) % TWO_PI) + TWO_PI) % TWO_PI) - Math.PI;
+      v.cur.ry.x = ((((v.cur.ry.x + Math.PI) % TWO_PI) + TWO_PI) % TWO_PI) - Math.PI;
       step(0);
     },
     setMouth(level) {
@@ -816,6 +1115,12 @@ export function createPetView(container, pet) {
     setTicker(fn) {
       ticker = fn;
     },
+    // How far left or right of the pet's home spot this screen point is, in the pet's own units.
+    worldX(clientX) {
+      const rect = canvas.getBoundingClientRect();
+      const across = ((clientX - rect.left) / rect.width) * 2 - 1;
+      return across * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z * camera.aspect;
+    },
     // Where the pet should look: x and y from -1 to 1, y up.
     setLook(x, y) {
       v.look = { x, y };
@@ -824,7 +1129,7 @@ export function createPetView(container, pet) {
       for (const [name, item] of Object.entries(model.accessories)) item.visible = name === id;
       step(0);
     },
-    // What is under this screen point: 'head', 'belly', 'tail', 'feet', a boxing pad ('pad0'…) or null.
+    // What is under this screen point: 'head', 'belly', 'tail', 'feet', a boxing pad ('pad0'…), a bubble ('bubble0'…) or null.
     pick(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
       const point = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -845,6 +1150,7 @@ export function createPetView(container, pet) {
       renderer.setAnimationLoop(null);
       observer.disconnect();
       disposeScene(scene);
+      light.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       canvas.remove();

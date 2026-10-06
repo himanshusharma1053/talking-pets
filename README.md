@@ -8,8 +8,12 @@ What comes next is in [ROADMAP.md](ROADMAP.md).
 
 - **Talks back:** say something and it repeats it in its own voice.
 - **Reacts to pokes:** head, belly, tail and feet each do something different. Poke the head three times quickly and it gets dizzy.
-- **Games:** two 30-second games with a star score and a best score kept on the device. In boxing, tap the pads as they pop up and the pet punches them. On the swing, tap to push and swing high enough to ring the bell.
-- **Buttons:** feed, milk (with a burp), ball, pie in the face, trampoline, bubbles, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
+- **Games:** four 30-second games, each with a star score and a best score kept on the device.
+  - Boxing: tap the pads as they pop up and the pet punches them.
+  - Swing: tap to push, and swing high enough to ring the bell.
+  - Catch: drag the pet left and right to catch falling food, and dodge the socks.
+  - Bubbles: the pet blows bubbles; tap to pop them. Golden ones are worth three.
+- **Buttons:** feed, milk (with a burp), ball, pie in the face, trampoline, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
 - **Speaks:** it says its reactions aloud using the device's speech voice, so there is nothing to read.
 - **Watches you:** its head and eyes follow your finger or mouse.
 

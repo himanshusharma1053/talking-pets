@@ -95,8 +95,14 @@ export function createSounds(ctx) {
     call(pet, mood, at = 0) {
       calls[mood](pet.voice.wave, pet.voice.pitch, at);
     },
-    munch() {
-      for (let i = 0; i < 6; i++) hiss({ at: 0.5 + i * 0.31, duration: 0.12, gain: 0.3, freq: 900, q: 1.5 });
+    // A crunch on each bite, soft chewing after it, and a gulp at the end.
+    munch(bites, gulp) {
+      for (const at of bites) {
+        hiss({ at, duration: 0.07, gain: 0.45, freq: 1400, q: 1.2 });
+        hiss({ at: at + 0.05, duration: 0.09, gain: 0.3, freq: 800, q: 1.5 });
+        for (let chew = 1; chew <= 2; chew++) hiss({ at: at + chew * 0.2, duration: 0.08, gain: 0.12, freq: 700, q: 2 });
+      }
+      tone({ from: 320, to: 150, at: gulp, duration: 0.16, gain: 0.25 });
     },
     slurp() {
       for (let i = 0; i < 4; i++) {
@@ -159,12 +165,20 @@ export function createSounds(ctx) {
     fanfare() {
       [523, 659, 784, 1047].forEach((note, i) => tone({ wave: 'square', from: note, at: i * 0.13, duration: i === 3 ? 0.5 : 0.12, gain: 0.12 }));
     },
-    // Bloops as bubbles are blown, then little pops.
-    bubbles() {
-      for (let i = 0; i < 7; i++) {
-        tone({ from: 420 + i * 40, to: 760 + i * 40, at: 0.2 + i * 0.35, duration: 0.14, gain: 0.14 });
-        tone({ from: 1900, to: 900, at: 2.3 + i * 0.3, duration: 0.05, gain: 0.16 });
-      }
+    chomp() {
+      hiss({ duration: 0.08, gain: 0.3, freq: 900, q: 1.5 });
+      hiss({ at: 0.12, duration: 0.08, gain: 0.3, freq: 900, q: 1.5 });
+      tone({ from: 880, to: 1320, at: 0.05, duration: 0.12, gain: 0.12 });
+    },
+    yuck() {
+      tone({ wave: 'sawtooth', from: 260, to: 120, duration: 0.45, gain: 0.25, vibrato: 30, rate: 14 });
+    },
+    bloop() {
+      tone({ from: 420, to: 780, duration: 0.12, gain: 0.1 });
+    },
+    pop() {
+      tone({ from: 1900, to: 800, duration: 0.06, gain: 0.25 });
+      hiss({ duration: 0.04, gain: 0.2, freq: 3000, q: 1 });
     },
     // A springy boing on every landing.
     bounces(interval, count) {

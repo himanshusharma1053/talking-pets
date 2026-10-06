@@ -35,20 +35,25 @@
       <span>The microphone is off, so your pet can't hear you. Taps and games still work.</span>
       <button id="mic-retry" class="chip" type="button">Turn on microphone</button>
     </div>
-    <nav class="actions">
-      <button type="button" data-action="feed" aria-label="Feed"><span class="emoji" id="feed-emoji">🍽️</span><span class="label">Feed</span></button>
-      <button type="button" data-action="milk" aria-label="Milk"><span class="emoji">🥛</span><span class="label">Milk</span></button>
-      <button type="button" data-action="ball" aria-label="Ball"><span class="emoji">⚽</span><span class="label">Ball</span></button>
-      <button type="button" data-action="pie" aria-label="Pie"><span class="emoji">🥧</span><span class="label">Pie</span></button>
-      <button type="button" class="game" data-game="swing" aria-label="Swing game"><span class="emoji">🎠</span><span class="label">Swing</span></button>
-      <button type="button" class="game" data-game="boxing" aria-label="Boxing game"><span class="emoji">🥊</span><span class="label">Boxing</span></button>
-      <button type="button" data-action="trampoline" aria-label="Trampoline"><span class="emoji">🤸</span><span class="label">Jump</span></button>
-      <button type="button" data-action="bubbles" aria-label="Bubbles"><span class="emoji">🫧</span><span class="label">Bubbles</span></button>
-      <button type="button" data-action="dance" aria-label="Dance"><span class="emoji">🎵</span><span class="label">Dance</span></button>
-      <button type="button" data-action="toot" aria-label="Toot"><span class="emoji">💨</span><span class="label">Toot</span></button>
-      <button type="button" id="dress" aria-label="Dress up"><span class="emoji">🎩</span><span class="label">Dress up</span></button>
-      <button type="button" id="sleep" aria-label="Sleep"><span class="emoji" id="sleep-emoji">🌙</span><span class="label">Sleep</span></button>
-    </nav>
+    <div class="controls">
+      <nav class="games" aria-label="Games">
+        <button type="button" class="game" data-game="boxing" aria-label="Boxing game"><span class="emoji">🥊</span><span class="label">Boxing</span></button>
+        <button type="button" class="game" data-game="swing" aria-label="Swing game"><span class="emoji">🎠</span><span class="label">Swing</span></button>
+        <button type="button" class="game" data-game="catch" aria-label="Catch the food game"><span class="emoji">🧺</span><span class="label">Catch</span></button>
+        <button type="button" class="game" data-game="pop" aria-label="Bubble pop game"><span class="emoji">🫧</span><span class="label">Bubbles</span></button>
+      </nav>
+      <nav class="actions" aria-label="Things to do">
+        <button type="button" data-action="feed" aria-label="Feed"><span class="emoji" id="feed-emoji">🍽️</span><span class="label">Feed</span></button>
+        <button type="button" data-action="milk" aria-label="Milk"><span class="emoji">🥛</span><span class="label">Milk</span></button>
+        <button type="button" data-action="ball" aria-label="Ball"><span class="emoji">⚽</span><span class="label">Ball</span></button>
+        <button type="button" data-action="pie" aria-label="Pie"><span class="emoji">🥧</span><span class="label">Pie</span></button>
+        <button type="button" data-action="trampoline" aria-label="Trampoline"><span class="emoji">🤸</span><span class="label">Jump</span></button>
+        <button type="button" data-action="dance" aria-label="Dance"><span class="emoji">🎵</span><span class="label">Dance</span></button>
+        <button type="button" data-action="toot" aria-label="Toot"><span class="emoji">💨</span><span class="label">Toot</span></button>
+        <button type="button" id="dress" aria-label="Dress up"><span class="emoji">🎩</span><span class="label">Dress up</span></button>
+        <button type="button" id="sleep" aria-label="Sleep"><span class="emoji" id="sleep-emoji">🌙</span><span class="label">Sleep</span></button>
+      </nav>
+    </div>
   </main>
 
   <script type="module" src="js/app.js"></script>

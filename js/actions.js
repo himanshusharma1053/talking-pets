@@ -3,7 +3,9 @@
 
 // Moments inside an action, in seconds, where sound and animation must line up.
 export const CUES = {
-  burp: 2.1,
+  burp: 2.6,
+  bites: [0.9, 1.7, 2.5], // when each bite of food is taken
+  gulp: 3.2,
   toot: 0.4,
   pieHit: 0.35,
   ballHit: 0.45,
@@ -12,13 +14,12 @@ export const CUES = {
 
 // Things you start with a button. `say` lists lines the pet may speak; one is picked at random.
 export const ACTIONS = {
-  feed: { ms: 2800, say: ['Yum yum yum!', 'Mmm, delicious!', 'More please!'] },
-  milk: { ms: 3000, say: ['Mmm, milk!', 'Glug glug glug!'] },
+  feed: { ms: 4200, say: ['Yum yum yum!', 'Mmm, delicious!', 'More please!'] },
+  milk: { ms: 4000, say: ['Mmm, milk!', 'Glug glug glug!'] },
   ball: { ms: 2000, say: ['Ooh, a ball!', 'Catch!'] },
   pie: { ms: 3000, say: ['Uh oh!', 'Oh no, a pie!'] },
   dance: { ms: 5000, say: ['Dance party!', "Let's dance!"] },
   toot: { ms: 1900, say: ['Oops! Excuse me!', 'That was not me!'] },
-  bubbles: { ms: 4500, say: ['Bubbles!', 'Look, bubbles!'] },
   trampoline: { ms: 5400, say: ['Boing! Boing!', 'Jump! Jump! Jump!'] },
 };
 
@@ -36,6 +37,8 @@ export const REACTIONS = {
 export const GAMES = {
   boxing: { say: ['Tap the pads! Pow, pow, pow!', 'Hit the pads as fast as you can!'] },
   swing: { say: ['Push me! Ring the bell!', 'Push me higher!'] },
+  catch: { say: ['Catch the food! No socks, please!', 'I am hungry! Help me catch it!'] },
+  pop: { say: ['Pop the bubbles!', 'Bubbles! Pop them all!'] },
 };
 
 // What the pet says when a game ends.

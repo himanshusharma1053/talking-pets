@@ -1,7 +1,7 @@
 import { PETS, findPet } from './pets.js';
 import { nextState, micOpen } from './state.js';
 import { ACTIONS, REACTIONS, GAMES, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine, scoreLine } from './actions.js';
-import { BOXING, SWING, createBoxing, createSwing, newRecord } from './games.js';
+import { POP, createBoxing, createSwing, createCatch, createPop, newRecord } from './games.js';
 import { createSounds } from './sounds.js';
 import { createVoice, playSamples } from './voice.js';
 import { createPetView, renderThumbnails } from './pet3d.js';
@@ -25,7 +25,7 @@ const SOUNDS = {
     s.twinkle();
     cry(s, pet, 'woozy');
   },
-  feed: (s) => s.munch(),
+  feed: (s) => s.munch(CUES.bites, CUES.gulp),
   milk: (s) => {
     s.slurp();
     s.burp(CUES.burp);
@@ -45,7 +45,6 @@ const SOUNDS = {
     cry(s, pet, 'giggle', CUES.toot + 0.9);
   },
   cheer: (s) => s.fanfare(),
-  bubbles: (s) => s.bubbles(),
   trampoline: (s) => s.bounces(CUES.bounce, Math.round(ACTIONS.trampoline.ms / 1000 / CUES.bounce)),
 };
 
@@ -54,7 +53,8 @@ const picker = $('picker');
 const stage = $('stage');
 const holder = $('pet-holder');
 const micNotice = $('mic-notice');
-const actionButtons = [...document.querySelectorAll('.actions button')];
+const actionButtons = [...document.querySelectorAll('.controls button')];
+const NEW_GAME = { boxing: createBoxing, swing: createSwing, catch: createCatch, pop: createPop };
 
 let pet = null;
 let view = null;
@@ -129,6 +129,7 @@ function emojiView() {
     setLook: nothing,
     setAccessory: nothing,
     setGame: nothing,
+    worldX: () => 0,
     setTicker: (fn) => (clock = setInterval(() => fn(0.05), 50)),
     dispose: () => clearInterval(clock),
     pick: () => 'belly',
@@ -245,7 +246,7 @@ function enter(to, payload, line) {
       break;
     }
     case 'playing':
-      game = detail === 'boxing' ? createBoxing() : createSwing();
+      game = NEW_GAME[detail]();
       view.setGame(game.state);
       lines = GAMES[detail].say;
       break;
@@ -292,7 +293,14 @@ function tick(dt) {
     } else if (event === 'bell') {
       sounds?.bell();
       fx = { kind: 'bell', t: 0 };
-    } else if (event === 'end') {
+    } else if (event === 'catch') {
+      sounds?.chomp();
+      fx = { kind: 'catch', t: 0 };
+    } else if (event === 'yuck') {
+      sounds?.yuck();
+      fx = { kind: 'yuck', t: 0 };
+    } else if (event === 'blow') sounds?.bloop();
+    else if (event === 'end') {
       endGame();
       return;
     }
@@ -301,13 +309,24 @@ function tick(dt) {
   renderHud();
 }
 
-function gameTap(zone) {
-  if (game.state.kind === 'boxing') {
+function gameTap(zone, clientX) {
+  const { kind } = game.state;
+  if (kind === 'boxing') {
     if (!zone?.startsWith('pad')) return;
     const slot = Number(zone.slice(3));
     if (!game.hit(slot)) return;
     fx = { kind: 'hit', slot, t: 0 };
     sounds?.thud();
+  } else if (kind === 'catch') {
+    game.steer(view.worldX(clientX));
+  } else if (kind === 'pop') {
+    if (!zone?.startsWith('bubble')) return;
+    // Each bubble on screen is drawn in the slot given by its id.
+    const slot = Number(zone.slice(6));
+    const bubble = game.state.bubbles.find((b) => b.id % POP.pool === slot);
+    if (!bubble || !game.pop(bubble.id)) return;
+    fx = { kind: 'pop', x: bubble.x, y: bubble.y, t: 0 };
+    sounds?.pop();
   } else {
     const push = game.push();
     if (!push) return;
@@ -318,9 +337,8 @@ function gameTap(zone) {
 
 function renderHud() {
   if (!game) return;
-  const seconds = game.state.kind === 'boxing' ? BOXING.seconds : SWING.seconds;
   $('hud-score').textContent = game.state.score;
-  $('hud-time').style.transform = `scaleX(${game.state.left / seconds})`;
+  $('hud-time').style.transform = `scaleX(${game.state.left / game.state.seconds})`;
 }
 
 // Best scores are kept on this device only.
@@ -354,7 +372,7 @@ $('hud-quit').addEventListener('click', () => dispatch('quit'));
 holder.addEventListener('pointerdown', (e) => {
   let zone = view.pick(e.clientX, e.clientY);
   if (state === 'playing') {
-    gameTap(zone);
+    gameTap(zone, e.clientX);
     return;
   }
   if (!zone) return;
@@ -365,8 +383,9 @@ holder.addEventListener('pointerdown', (e) => {
   dispatch('tap', zone);
 });
 
-// The pet watches your finger or mouse.
+// The pet watches your finger or mouse, and in the catching game runs after it.
 holder.addEventListener('pointermove', (e) => {
+  if (game?.state.kind === 'catch') game.steer(view.worldX(e.clientX));
   const rect = holder.getBoundingClientRect();
   view.setLook(((e.clientX - rect.left) / rect.width) * 2 - 1, -(((e.clientY - rect.top) / rect.height) * 2 - 1));
 });

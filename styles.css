@@ -174,7 +174,7 @@ button {
 .hud .chip { min-width: 0; }
 
 /* While a game is on, the buttons step aside to give it the whole screen. */
-.stage[data-state="playing"] .actions,
+.stage[data-state="playing"] .controls,
 .stage[data-state="playing"] .mic-notice { display: none; }
 
 .pet-holder {
@@ -208,16 +208,29 @@ button {
   text-align: center;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+/* Games on top in a row of their own, everything else underneath. */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
 }
 
-.actions button {
+.games,
+.actions {
+  display: grid;
+  gap: 8px;
+}
+
+.games { grid-template-columns: repeat(4, 1fr); }
+.actions { grid-template-columns: repeat(9, 1fr); gap: 5px; }
+.actions button { border-radius: 12px; border-width: 2px; box-shadow: 0 3px 0 var(--ink); }
+.actions .emoji { font-size: 1.25rem; }
+.games .emoji { font-size: 1.9rem; }
+
+.controls button {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -231,15 +244,15 @@ button {
   transition: transform 0.1s, box-shadow 0.1s;
 }
 
-.actions button:active:not(:disabled) {
+.controls button:active:not(:disabled) {
   transform: translateY(4px);
   box-shadow: 0 1px 0 var(--ink);
 }
 
-.actions button:disabled { opacity: 0.45; cursor: default; }
-.actions button.game { background: #ffe38a; } /* games stand out from the other buttons */
-.actions .emoji { font-size: 1.6rem; line-height: 1.2; }
-.actions .label { display: none; } /* phones show pictures only */
+.controls button:disabled { opacity: 0.45; cursor: default; }
+.controls button.game { background: #ffe38a; } /* games stand out from the other buttons */
+.controls .emoji { line-height: 1.2; }
+.controls .label { display: none; } /* phones show pictures only */
 
 /* ---------- The pet ---------- */
 
@@ -258,8 +271,12 @@ button {
 
 /* Tablets and wide screens: one row of buttons with names, and four pets per row. */
 @media (min-width: 700px) {
-  .actions { grid-template-columns: repeat(12, 1fr); max-width: 1000px; }
-  .actions .label { display: inline; }
+  .controls { flex-direction: row; max-width: 1040px; }
+  .games { flex: 4; }
+  .actions { flex: 9; gap: 8px; }
+  .controls .label { display: inline; }
+  .controls .emoji { font-size: 1.6rem; }
+  .actions button { border-radius: 16px; border-width: 3px; box-shadow: 0 5px 0 var(--ink); }
   .picker { max-width: 900px; }
   .pet-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
