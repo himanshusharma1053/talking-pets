@@ -386,7 +386,7 @@ pianoKeys.forEach((key, i) => {
     const result = game.press(i);
     if (!result) return;
     sounds?.note(SCALE[i], pet);
-    if (result === 'tune') sounds?.bell();
+    if (result === 'tune') sounds?.flourish();
     fx = { kind: 'note', key: i, right: result !== 'free', t: 0 };
   });
 });

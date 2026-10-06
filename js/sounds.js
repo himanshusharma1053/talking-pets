@@ -1,5 +1,12 @@
-// Sound effects and instruments, synthesised in the browser so there are no
-// audio files. Every effect takes `at`: how many seconds from now it starts.
+// Sound effects and instruments. Taps, pops, punches, bells and jingles are
+// recordings from the sounds/ folder; everything else (the piano, the silly
+// noises, the music) is made in the browser. Every generated effect takes `at`:
+// how many seconds from now it starts.
+
+// The recordings, and how many takes there are of each. With more than one
+// take, a different one plays each time so repeats don't sound mechanical.
+// To change a sound, replace its file in sounds/ (see sounds/LICENSE.txt).
+export const RECORDINGS = { punch: 3, kick: 2, appear: 2, pop: 3, catch: 2, star: 1, bell: 1, miss: 1, tune: 1, win: 1, goal: 1 };
 
 export function createSounds(ctx) {
   // Everything passes through a gentle limiter, so stacked sounds never get harsh.
@@ -29,6 +36,33 @@ export function createSounds(ctx) {
     gain.connect(master);
     gain.connect(room);
     return gain;
+  }
+
+  // Load the recordings in the background. Until one has arrived (or if it
+  // never does), its generated stand-in plays instead.
+  const recorded = {};
+  for (const [name, takes] of Object.entries(RECORDINGS)) {
+    for (let take = 1; take <= takes; take++) {
+      fetch(`sounds/${name}${take}.wav`)
+        .then((response) => (response.ok ? response.arrayBuffer() : Promise.reject()))
+        .then((bytes) => ctx.decodeAudioData(bytes))
+        .then((sound) => (recorded[name] ??= []).push(sound))
+        .catch(() => {});
+    }
+  }
+
+  // Play a recording. Returns false if it isn't loaded, so the caller can fall back.
+  function play(name, { gain = 0.6, rate = 1 } = {}) {
+    const takes = recorded[name];
+    if (!takes?.length) return false;
+    const source = ctx.createBufferSource();
+    source.buffer = takes[Math.floor(Math.random() * takes.length)];
+    source.playbackRate.value = rate;
+    const level = ctx.createGain();
+    level.gain.value = gain;
+    source.connect(level).connect(bus);
+    source.start();
+    return true;
   }
 
   const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -158,6 +192,7 @@ export function createSounds(ctx) {
       hiss({ at, duration: 0.45, gain: 0.08, freq: 500, q: 1 });
     },
     chomp() {
+      if (play('catch')) return;
       hiss({ duration: 0.08, gain: 0.3, freq: 900, q: 1.5 });
       hiss({ at: 0.12, duration: 0.08, gain: 0.3, freq: 900, q: 1.5 });
       chime(A5, { at: 0.05, gain: 0.1, length: 0.5 });
@@ -205,42 +240,58 @@ export function createSounds(ctx) {
 
     // ----- Game sounds -----
     thud() {
+      if (play('punch', { gain: 0.7 })) return;
       hiss({ duration: 0.09, gain: 0.45, freq: 260, q: 1 });
       tone({ from: 170, to: 60, duration: 0.12, gain: 0.45 });
     },
     kick() {
+      if (play('kick', { gain: 0.7 })) return;
       hiss({ duration: 0.06, gain: 0.35, freq: 500, q: 1 });
       tone({ from: 150, to: 55, duration: 0.14, gain: 0.5 });
     },
     // A soft wooden tap as something appears.
     blip() {
+      if (play('appear', { gain: 0.35 })) return;
       tone({ from: 520, to: 700, duration: 0.06, gain: 0.08 });
     },
     miss() {
+      if (play('miss', { gain: 0.4 })) return;
       tone({ wave: 'triangle', from: 230, to: 150, duration: 0.2, gain: 0.14 });
     },
     ding() {
+      if (play('star', { gain: 0.5 })) return;
       chime(E5 * 2, { gain: 0.18 });
     },
     bell() {
+      if (play('bell', { gain: 0.6 })) return;
       chime(C6, { gain: 0.2, length: 1.3 });
       chime(E5 * 2, { at: 0.09, gain: 0.16, length: 1.3 });
       chime(G5 * 2, { at: 0.18, gain: 0.14, length: 1.5 });
     },
     // A crowd going "yaaay", with a little rising chime on top.
     cheer() {
+      if (play('goal', { gain: 0.55 })) return;
       hiss({ duration: 1.1, gain: 0.2, freq: 1300, q: 0.4, attack: 0.25 });
       hiss({ duration: 0.9, gain: 0.12, freq: 2600, q: 0.6, attack: 0.3 });
       [C5, E5, G5].forEach((note, i) => chime(note * 2, { at: i * 0.08, gain: 0.12 }));
     },
+    // A finished tune on the piano.
+    flourish() {
+      if (play('tune', { gain: 0.45 })) return;
+      chime(C6, { gain: 0.2, length: 1.3 });
+      chime(E5 * 2, { at: 0.09, gain: 0.16, length: 1.3 });
+    },
     fanfare() {
+      if (play('win', { gain: 0.6 })) return;
       [C5, E5, G5, C6].forEach((note, i) => piano(note, { at: i * 0.13, gain: 0.2, length: i === 3 ? 1.2 : 0.5 }));
       [C5, E5, G5].forEach((note) => chime(note * 2, { at: 0.52, gain: 0.08, length: 1.2 }));
     },
     bloop() {
+      if (play('appear', { gain: 0.25, rate: 0.8 })) return;
       tone({ from: 420, to: 780, duration: 0.12, gain: 0.09 });
     },
     pop() {
+      if (play('pop', { gain: 0.6 })) return;
       tone({ from: 1500, to: 600, duration: 0.06, gain: 0.2 });
       hiss({ duration: 0.04, gain: 0.15, freq: 2500, q: 1 });
     },

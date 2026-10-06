@@ -42,7 +42,7 @@ The pets are built in code from simple shapes. That gets to "nice plush toy" and
 - **Or license** a ready-made animated animal pack from an asset store, checking the licence allows a published app.
 - The app can load these as standard `.glb` files in place of the built-in models; the animation and game code stays.
 
-Also worth doing: real recorded sound effects, and a recorded child-friendly voice actor for the pet's lines in place of the device's speech voice. Both need audio files with a licence that allows publishing them in an app.
+Sound: taps, pops, punches, bells and jingles are now recordings (Kenney, CC0). Still generated in the app: the burp, toot, boing, munching, slurping and snoring, which need a cartoon sound pack. Also worth doing: a recorded child-friendly voice actor for the pet's lines in place of the device's speech voice. Any audio added needs a licence that allows publishing it in an app.
 
 ## Launching on Android
 

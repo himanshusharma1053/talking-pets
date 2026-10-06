@@ -45,6 +45,7 @@ npm test
 - `js/state.js` — what the pet is doing and which events change it.
 - `js/vad.js` — detects when you start and stop talking.
 - `js/voice.js` — microphone capture and pitched playback.
-- `js/sounds.js` — sound effects and instruments (chimes, piano), made in the browser with no audio files.
+- `js/sounds.js` — sound effects and instruments. Taps, pops, punches, bells and jingles are recordings; the piano, music and silly noises are made in the browser.
+- `sounds/` — the recordings, from Kenney's free CC0 asset packs (see `sounds/LICENSE.txt`). Replace a file to change that sound.
 - `js/app.js` — wires the screen to everything above.
 - `vendor/` — a copy of [three.js](https://threejs.org) (MIT licence), so the app needs no build step and works offline.
