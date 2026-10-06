@@ -8,8 +8,6 @@ export const CUES = {
   pieHit: 0.35,
   ballHit: 0.45,
   bounce: 0.9, // one trampoline bounce
-  jab: 0.3, // one boxing punch
-  swing: 2.6, // one full swing, there and back
 };
 
 // Things you start with a button. `say` lists lines the pet may speak; one is picked at random.
@@ -20,8 +18,6 @@ export const ACTIONS = {
   pie: { ms: 3000, say: ['Uh oh!', 'Oh no, a pie!'] },
   dance: { ms: 5000, say: ['Dance party!', "Let's dance!"] },
   toot: { ms: 1900, say: ['Oops! Excuse me!', 'That was not me!'] },
-  swing: { ms: 6000, say: ['Wheee!', 'Higher! Higher!'] },
-  boxing: { ms: 4500, say: ['Put them up!', 'Pow! Pow! Pow!'] },
   bubbles: { ms: 4500, say: ['Bubbles!', 'Look, bubbles!'] },
   trampoline: { ms: 5400, say: ['Boing! Boing!', 'Jump! Jump! Jump!'] },
 };
@@ -33,7 +29,21 @@ export const REACTIONS = {
   tail: { ms: 1000, say: ['Yeow!', 'My tail!'] },
   feet: { ms: 800, say: ['Boing!', 'Hop hop!'] },
   dizzy: { ms: 2800, say: ['Whoa, I am so dizzy!', 'Everything is spinning!'] },
+  cheer: { ms: 3000, say: ['Hooray!'] }, // after a game; the app says the score instead
 };
+
+// Mini-games: what the pet says as each one starts.
+export const GAMES = {
+  boxing: { say: ['Tap the pads! Pow, pow, pow!', 'Hit the pads as fast as you can!'] },
+  swing: { say: ['Push me! Ring the bell!', 'Push me higher!'] },
+};
+
+// What the pet says when a game ends.
+export function scoreLine(score, record) {
+  if (score === 0) return "Let's try again!";
+  const stars = score === 1 ? '1 star' : `${score} stars`;
+  return record ? `${stars}! A new record!` : `You got ${stars}! Great job!`;
+}
 
 // Spoken when the pet goes to sleep and wakes up.
 export const GREETINGS = {

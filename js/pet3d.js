@@ -2,7 +2,7 @@
 
 import * as THREE from '../vendor/three.module.js';
 import { RoomEnvironment } from '../vendor/RoomEnvironment.js';
-import { ACTIONS, CUES } from './actions.js';
+import { CUES } from './actions.js';
 
 const CLOSED = 0.08; // eye height when shut
 const TWO_PI = Math.PI * 2;
@@ -12,6 +12,9 @@ const arc = (p) => (p <= 0 || p >= 1 ? 0 : 4 * p * (1 - p)); // 0 → 1 → 0, f
 // The swing hangs from a point above the top of the screen.
 const SWING_TOP = 6.3;
 const SWING_LENGTH = 6;
+
+// Where boxing pads appear around the pet: [x, y], all a little in front of it.
+const PAD_SLOTS = [[-1.2, 3.6], [1.2, 3.6], [-1.3, 2.4], [1.3, 2.4], [-1.15, 1.1], [1.15, 1.1]];
 
 const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
 
@@ -298,10 +301,20 @@ function buildPet(pet) {
   sides((s) => add(P.swing, new THREE.Mesh(rope, wood), [s * 0.98, -SWING_LENGTH / 2, 0]));
   add(P.swing, new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.12, 0.85), wood), [0, -SWING_LENGTH, 0]);
 
-  P.bag = group(props, [1.35, 5.4, 0.75]);
-  add(P.bag, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.4), M.line), [0, -1.2, 0]);
-  add(P.bag, new THREE.Mesh(new THREE.CapsuleGeometry(0.45, 1.2, 8, 24), matte('#c1272d')), [0, -3.3, 0]);
-  add(P.bag, new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.05, 8, 28), M.white), [0, -3.3, 0], [Math.PI / 2, 0, 0]);
+  // Boxing pads: round targets facing the player, one per slot.
+  const disc = (radius, depth) => new THREE.CylinderGeometry(radius, radius, depth, 36);
+  P.pads = PAD_SLOTS.map((_, i) => {
+    const pad = group(props, [0, 0, 0], `pad${i}`);
+    add(pad, new THREE.Mesh(disc(0.38, 0.12), M.red), [0, 0, 0], [Math.PI / 2, 0, 0]);
+    add(pad, new THREE.Mesh(disc(0.25, 0.14), M.white), [0, 0, 0], [Math.PI / 2, 0, 0]);
+    add(pad, new THREE.Mesh(disc(0.12, 0.16), M.red), [0, 0, 0], [Math.PI / 2, 0, 0]);
+    return pad;
+  });
+  P.pow = textSprite('💥');
+  P.sparkle = textSprite('✨');
+  P.star = textSprite('⭐');
+  P.bell = textSprite('🔔');
+  P.confetti = [textSprite('🎉'), textSprite('🎊')];
 
   P.trampoline = group(props);
   add(P.trampoline, new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.1, 40), matte('#3a86ff')), [0, 0.3, 0]).receiveShadow = true;
@@ -311,7 +324,7 @@ function buildPet(pet) {
   P.bubbles = Array.from({ length: 7 }, () => new THREE.Mesh(sphere, soap));
   P.gloves = gloves;
 
-  props.add(P.food, P.milk, P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles);
+  props.add(P.food, P.milk, P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles, P.pow, P.sparkle, P.star, P.bell, ...P.confetti);
 
   return { root, props, head, armL, armR, tail, eyes, pupils, mouth, smile, cream, accessories, P, hideable: [...props.children, ...stars, ...gloves, cream] };
 }
@@ -355,7 +368,8 @@ function pose(m, v, dt, snap) {
     T.squash = Math.sin(t * 30) * 0.05;
   };
 
-  switch (v.state === 'reacting' || v.state === 'acting' ? v.detail : v.state) {
+  const busy = v.state === 'reacting' || v.state === 'acting';
+  switch (v.state === 'playing' ? `${v.detail}-game` : busy ? v.detail : v.state) {
     case 'listening':
       T.headRz = -0.22;
       T.headRy = 0.15;
@@ -498,9 +512,63 @@ function pose(m, v, dt, snap) {
       });
       break;
 
-    case 'swing': {
-      const ramp = Math.min(1, t / 0.8, Math.max(0, (ACTIONS.swing.ms / 1000 - t) / 0.8));
-      const angle = Math.sin((t * TWO_PI) / CUES.swing) * 0.42 * ramp;
+    case 'cheer':
+      T.y = Math.abs(Math.sin(t * 8)) * 0.35;
+      T.armL = -2.6;
+      T.armR = 2.6;
+      T.mouth = 0.9;
+      T.eyes = CLOSED;
+      T.wag = 4;
+      P.confetti.forEach((item, i) => {
+        const p = (t * 0.7 + i * 0.5) % 1;
+        show(item, (i ? 1 : -1) * 1.5, 2.2 + p * 2.2, 0.8, 0.9, Math.sin(p * Math.PI));
+      });
+      break;
+
+    // ----- Games -----
+    case 'boxing-game': {
+      const g = v.game;
+      for (const glove of P.gloves) glove.visible = true;
+      // Guard up, bouncing on the spot.
+      T.armL = -0.45;
+      T.armR = 0.45;
+      T.armLx = -1;
+      T.armRx = -1;
+      T.y = Math.abs(Math.sin(time * 7)) * 0.07;
+      if (g?.target) {
+        const { slot, age, life } = g.target;
+        const [x, y] = PAD_SLOTS[slot];
+        const pad = P.pads[slot];
+        pad.visible = true;
+        pad.position.set(x, y, 1);
+        pad.scale.setScalar(Math.min(1, age / 0.12) * (1 - 0.35 * (age / life))); // pops in, then shrinks away
+        T.headRy = Math.sign(x) * 0.15;
+        T.pupilX = Math.sign(x) * 0.05;
+        T.pupilY = (y - 2.6) * 0.03;
+      }
+      const fx = g?.fx;
+      if (fx?.kind === 'hit' && fx.t < 0.3) {
+        const [x, y] = PAD_SLOTS[fx.slot];
+        const reach = Math.sin((fx.t / 0.3) * Math.PI);
+        const lift = -1.5 - (y - 2.4) * 0.55; // higher pads need the arm raised further
+        if (x < 0) {
+          T.armLx = -1 + (lift + 1) * reach;
+          T.armL = -0.45 - 0.35 * reach;
+        } else {
+          T.armRx = -1 + (lift + 1) * reach;
+          T.armR = 0.45 + 0.35 * reach;
+        }
+        T.ry = Math.sign(x) * 0.45 * reach;
+        T.mouth = 0.6;
+        show(P.pow, x, y, 1.2, 0.6 + fx.t * 3, 1 - fx.t / 0.3);
+      }
+      if (fx?.kind === 'miss' && fx.t < 0.4) T.headRx = 0.2;
+      break;
+    }
+
+    case 'swing-game': {
+      const angle = v.game?.angle ?? 0;
+      const fx = v.game?.fx;
       P.swing.visible = true;
       P.swing.rotation.x = -angle;
       T.rx = -angle;
@@ -508,38 +576,14 @@ function pose(m, v, dt, snap) {
       T.y = SWING_TOP - Math.cos(angle) * SWING_LENGTH + 0.06;
       T.armL = -2.75;
       T.armR = 2.75;
-      T.mouth = 0.6 + 0.3 * Math.abs(Math.sin(angle * 3));
-      T.eyeSize = 1.15;
+      T.mouth = 0.25 + Math.min(0.7, Math.abs(angle));
+      T.eyeSize = 1 + Math.min(0.3, Math.abs(angle) * 0.3);
       T.headRx = angle * 0.3;
       T.wag = 3;
-      break;
-    }
-
-    case 'boxing': {
-      const victory = t - (ACTIONS.boxing.ms / 1000 - 0.9);
-      P.bag.visible = true;
-      for (const glove of P.gloves) glove.visible = true;
-      if (victory < 0) {
-        const beat = t / CUES.jab; // one punch per beat, arms taking turns
-        const punch = Math.sin((beat % 1) * Math.PI);
-        const left = Math.floor(beat) % 2 === 0;
-        T.ry = 0.9;
-        T.armL = -0.15;
-        T.armR = 0.15;
-        T.armLx = left ? -1.5 * punch : -0.5;
-        T.armRx = left ? -0.5 : -1.5 * punch;
-        T.y = Math.abs(Math.sin(t * 9)) * 0.08;
-        T.headRx = 0.1;
-        T.mouth = punch > 0.6 ? 0.5 : 0.1;
-        P.bag.rotation.z = Math.sin(((beat + 0.6) % 1) * Math.PI) ** 2 * 0.2;
-      } else {
-        T.armL = -2.6;
-        T.armR = 2.6;
-        T.y = arc(victory / 0.6) * 0.6;
-        T.mouth = 0.9;
-        T.eyes = CLOSED;
-        P.bag.rotation.z = Math.sin(t * 6) * 0.05;
-      }
+      show(P.bell, 0, 6.3, 1.6, 0.9);
+      P.bell.material.rotation = fx?.kind === 'bell' ? Math.sin(fx.t * 40) * 0.5 * (1 - fx.t / 0.6) : 0;
+      if (fx?.kind === 'bell' || fx?.kind === 'star') show(P.star, 1.5, 4.2 + fx.t * 2.5, 2.2, 0.9 + fx.t, 1 - fx.t / 0.6);
+      if (fx?.kind === 'perfect') show(P.sparkle, -1.4, 1.6 + fx.t, 1.5, 0.9, 1 - fx.t / 0.6);
       break;
     }
 
@@ -663,11 +707,12 @@ function createScene(pet, renderer) {
 }
 
 // Pull the camera back far enough to fit the pet, ears and all, at any screen shape.
-function frame(camera, aspect) {
-  const distance = 11.2 * Math.max(1, 0.62 / aspect);
+// `far` (0 to 1) pulls back further still, for games that need more room.
+function frame(camera, aspect, far = 0) {
+  const distance = 11.2 * Math.max(1, 0.62 / aspect) * (1 + far * 0.7);
   camera.aspect = aspect;
-  camera.position.set(0, 3.1, distance);
-  camera.lookAt(0, 2.45, 0);
+  camera.position.set(0, 3.1 + far, distance);
+  camera.lookAt(0, 2.45 + far * 1.3, 0);
   camera.updateProjectionMatrix();
 }
 
@@ -678,7 +723,7 @@ function newRenderer() {
   return renderer;
 }
 
-const newViewState = () => ({ state: 'idle', detail: null, t: 0, time: 0, mouth: 0, look: { x: 0, y: 0 }, wagPhase: 0, cur: null });
+const newViewState = () => ({ state: 'idle', detail: null, game: null, t: 0, time: 0, mouth: 0, look: { x: 0, y: 0 }, wagPhase: 0, far: 0, cur: null });
 
 function disposeScene(scene) {
   scene.traverse((item) => {
@@ -718,10 +763,19 @@ export function createPetView(container, pet) {
   const v = newViewState();
   const raycaster = new THREE.Raycaster();
 
+  let ticker = null;
+
   function step(dt, snap = false) {
+    if (dt > 0) ticker?.(dt);
     v.t += dt;
     v.time += dt;
     pose(model, v, dt, snap);
+    const far = v.state === 'playing' && v.detail === 'swing' ? 1 : 0;
+    if (far !== v.far) {
+      const next = v.far + (far - v.far) * (1 - Math.exp(-dt * 4));
+      v.far = Math.abs(far - next) < 0.002 ? far : next;
+      frame(camera, camera.aspect, v.far);
+    }
     renderer.render(scene, camera);
   }
 
@@ -729,7 +783,7 @@ export function createPetView(container, pet) {
     const { clientWidth: width, clientHeight: height } = container;
     if (!width || !height) return;
     renderer.setSize(width, height, false);
-    frame(camera, width / height);
+    frame(camera, width / height, v.far);
     step(0);
   }
   const observer = new ResizeObserver(resize);
@@ -754,6 +808,14 @@ export function createPetView(container, pet) {
     setMouth(level) {
       v.mouth = level;
     },
+    // The current mini-game's state, for the pet to act out.
+    setGame(game) {
+      v.game = game;
+    },
+    // Call `fn(dt)` before every frame is drawn.
+    setTicker(fn) {
+      ticker = fn;
+    },
     // Where the pet should look: x and y from -1 to 1, y up.
     setLook(x, y) {
       v.look = { x, y };
@@ -762,15 +824,19 @@ export function createPetView(container, pet) {
       for (const [name, item] of Object.entries(model.accessories)) item.visible = name === id;
       step(0);
     },
-    // Which part of the pet is under this screen point: 'head', 'belly', 'tail', 'feet' or null.
+    // What is under this screen point: 'head', 'belly', 'tail', 'feet', a boxing pad ('pad0'…) or null.
     pick(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
       const point = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(point, camera);
-      for (const hit of raycaster.intersectObject(model.root, true)) {
+      for (const hit of raycaster.intersectObjects([model.root, model.props], true)) {
+        let zone = null;
+        let shown = true;
         for (let item = hit.object; item; item = item.parent) {
-          if (item.userData.zone) return item.userData.zone;
+          zone ??= item.userData.zone;
+          shown &&= item.visible;
         }
+        if (zone && shown) return zone;
       }
       return null;
     },

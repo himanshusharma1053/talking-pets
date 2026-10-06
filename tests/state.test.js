@@ -21,7 +21,7 @@ test('speech events are ignored unless the pet is free to hear them', () => {
 });
 
 test('a tap interrupts anything and wakes a sleeping pet', () => {
-  for (const state of STATES.filter((s) => s !== 'sleeping')) {
+  for (const state of STATES.filter((s) => s !== 'sleeping' && s !== 'playing')) {
     assert.equal(nextState(state, 'tap'), 'reacting', state);
   }
   assert.equal(nextState('sleeping', 'tap'), 'idle');
@@ -32,6 +32,22 @@ test('buttons start an action unless the pet is asleep', () => {
   assert.equal(nextState('talking', 'act'), 'acting');
   assert.equal(nextState('acting', 'act'), 'acting');
   assert.equal(nextState('sleeping', 'act'), null);
+});
+
+test('a game starts unless the pet is asleep, and owns the taps while it runs', () => {
+  assert.equal(nextState('idle', 'play'), 'playing');
+  assert.equal(nextState('acting', 'play'), 'playing');
+  assert.equal(nextState('sleeping', 'play'), null);
+  assert.equal(nextState('playing', 'tap'), null);
+  assert.equal(nextState('playing', 'heard'), null);
+});
+
+test('a game ends in a cheer, or straight back to idle if stopped', () => {
+  assert.equal(nextState('playing', 'gameOver'), 'reacting');
+  assert.equal(nextState('playing', 'quit'), 'idle');
+  assert.equal(nextState('idle', 'gameOver'), null);
+  assert.equal(nextState('idle', 'quit'), null);
+  assert.equal(nextState('playing', 'done'), null);
 });
 
 test('sleep toggles', () => {

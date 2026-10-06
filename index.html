@@ -25,6 +25,11 @@
       <h2 id="pet-name"></h2>
       <span class="chip-spacer"><span id="mic-dot" class="mic-dot" hidden>🎤</span></span>
     </header>
+    <div id="hud" class="hud" hidden>
+      <span class="hud-score">⭐ <b id="hud-score">0</b></span>
+      <span class="hud-time"><i id="hud-time"></i></span>
+      <button id="hud-quit" class="chip" type="button" aria-label="Stop the game">✖</button>
+    </div>
     <div id="pet-holder" class="pet-holder"></div>
     <div id="mic-notice" class="mic-notice" hidden>
       <span>The microphone is off, so your pet can't hear you. Taps and games still work.</span>
@@ -35,8 +40,8 @@
       <button type="button" data-action="milk" aria-label="Milk"><span class="emoji">🥛</span><span class="label">Milk</span></button>
       <button type="button" data-action="ball" aria-label="Ball"><span class="emoji">⚽</span><span class="label">Ball</span></button>
       <button type="button" data-action="pie" aria-label="Pie"><span class="emoji">🥧</span><span class="label">Pie</span></button>
-      <button type="button" data-action="swing" aria-label="Swing"><span class="emoji">🎠</span><span class="label">Swing</span></button>
-      <button type="button" data-action="boxing" aria-label="Boxing"><span class="emoji">🥊</span><span class="label">Boxing</span></button>
+      <button type="button" class="game" data-game="swing" aria-label="Swing game"><span class="emoji">🎠</span><span class="label">Swing</span></button>
+      <button type="button" class="game" data-game="boxing" aria-label="Boxing game"><span class="emoji">🥊</span><span class="label">Boxing</span></button>
       <button type="button" data-action="trampoline" aria-label="Trampoline"><span class="emoji">🤸</span><span class="label">Jump</span></button>
       <button type="button" data-action="bubbles" aria-label="Bubbles"><span class="emoji">🫧</span><span class="label">Bubbles</span></button>
       <button type="button" data-action="dance" aria-label="Dance"><span class="emoji">🎵</span><span class="label">Dance</span></button>

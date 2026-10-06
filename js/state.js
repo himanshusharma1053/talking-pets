@@ -1,7 +1,7 @@
 // What the pet is doing, and which events move it between activities.
 // Pure logic, no browser APIs.
 
-export const STATES = ['idle', 'listening', 'talking', 'reacting', 'acting', 'sleeping'];
+export const STATES = ['idle', 'listening', 'talking', 'reacting', 'acting', 'playing', 'sleeping'];
 
 // Returns the state to enter, or null when the event should be ignored.
 // Returning the current state means "restart it" (e.g. a second tap).
@@ -16,7 +16,14 @@ export function nextState(state, event) {
     case 'done':
       return ['talking', 'reacting', 'acting'].includes(state) ? 'idle' : null;
     case 'tap':
+      if (state === 'playing') return null; // taps belong to the game
       return state === 'sleeping' ? 'idle' : 'reacting';
+    case 'play':
+      return state === 'sleeping' ? null : 'playing';
+    case 'gameOver':
+      return state === 'playing' ? 'reacting' : null;
+    case 'quit':
+      return state === 'playing' ? 'idle' : null;
     case 'act':
       return state === 'sleeping' ? null : 'acting';
     case 'sleep':

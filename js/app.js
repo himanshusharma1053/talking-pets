@@ -1,6 +1,7 @@
 import { PETS, findPet } from './pets.js';
 import { nextState, micOpen } from './state.js';
-import { ACTIONS, REACTIONS, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine } from './actions.js';
+import { ACTIONS, REACTIONS, GAMES, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine, scoreLine } from './actions.js';
+import { BOXING, SWING, createBoxing, createSwing, newRecord } from './games.js';
 import { createSounds } from './sounds.js';
 import { createVoice, playSamples } from './voice.js';
 import { createPetView, renderThumbnails } from './pet3d.js';
@@ -43,8 +44,7 @@ const SOUNDS = {
     s.toot(CUES.toot);
     cry(s, pet, 'giggle', CUES.toot + 0.9);
   },
-  swing: (s) => s.swing(CUES.swing),
-  boxing: (s) => s.punches(CUES.jab, Math.floor((ACTIONS.boxing.ms / 1000 - 0.9) / CUES.jab)),
+  cheer: (s) => s.fanfare(),
   bubbles: (s) => s.bubbles(),
   trampoline: (s) => s.bounces(CUES.bounce, Math.round(ACTIONS.trampoline.ms / 1000 / CUES.bounce)),
 };
@@ -68,6 +68,8 @@ let voice = null;
 let playback = null;
 let timer = null;
 let micTimer = null;
+let game = null; // the mini-game being played, if any
+let fx = null; // a short flourish inside a game: { kind, t, slot }
 
 // ---------- Pet picker ----------
 
@@ -119,7 +121,18 @@ $('change-pet').addEventListener('click', () => {
 function emojiView() {
   holder.innerHTML = `<span class="pet-emoji big">${pet.emoji}</span>`;
   const nothing = () => {};
-  return { setState: nothing, setMouth: nothing, setLook: nothing, setAccessory: nothing, dispose: nothing, pick: () => 'belly' };
+  // Without a 3D view there are no frames, so keep games running on a timer.
+  let clock = null;
+  return {
+    setState: nothing,
+    setMouth: nothing,
+    setLook: nothing,
+    setAccessory: nothing,
+    setGame: nothing,
+    setTicker: (fn) => (clock = setInterval(() => fn(0.05), 50)),
+    dispose: () => clearInterval(clock),
+    pick: () => 'belly',
+  };
 }
 
 function choosePet(id) {
@@ -134,6 +147,7 @@ function choosePet(id) {
     view = emojiView();
   }
   view.setAccessory(ACCESSORIES[accessory]);
+  view.setTicker(tick);
   enter('idle', GREETINGS.hello);
   startAudio();
 }
@@ -185,13 +199,13 @@ function openMic() {
 
 // ---------- Pet behaviour ----------
 
-function dispatch(event, payload) {
+function dispatch(event, payload, line) {
   const from = state;
   const to = nextState(state, event);
   if (!to) return;
   if (event === 'sleep') payload = to === 'sleeping' ? GREETINGS.sleep : GREETINGS.wake;
   if (event === 'tap' && from === 'sleeping') payload = GREETINGS.wake;
-  enter(to, payload);
+  enter(to, payload, line);
 }
 
 // Stop whatever the pet is doing right now.
@@ -201,14 +215,18 @@ function quiet() {
   playback = null;
   sounds?.stopAll();
   hush();
+  game = null;
+  fx = null;
+  view?.setGame(null);
 }
 
-// `payload` depends on the activity: the part poked, the button pressed,
-// the recording to play back, or lines to say when going to sleep or waking.
-function enter(to, payload) {
+// `payload` depends on the activity: the part poked, the button pressed, the
+// game chosen, the recording to play back, or lines to say when going to sleep
+// or waking. `line` replaces what the pet would normally say.
+function enter(to, payload, line) {
   quiet();
   state = to;
-  detail = to === 'reacting' || to === 'acting' ? payload : null;
+  detail = ['reacting', 'acting', 'playing'].includes(to) ? payload : null;
   view.setMouth(0);
   view.setState(to, detail);
 
@@ -221,11 +239,16 @@ function enter(to, payload) {
     case 'reacting':
     case 'acting': {
       const entry = (to === 'acting' ? ACTIONS : REACTIONS)[detail];
-      lines = entry.say;
+      lines = line ? [line] : entry.say;
       if (sounds) SOUNDS[detail](sounds, pet);
       timer = setTimeout(finish, entry.ms);
       break;
     }
+    case 'playing':
+      game = detail === 'boxing' ? createBoxing() : createSwing();
+      view.setGame(game.state);
+      lines = GAMES[detail].say;
+      break;
     case 'sleeping':
       lines = payload;
       sounds?.startSnoring();
@@ -245,13 +268,95 @@ function render() {
   stage.dataset.state = state;
   stage.dataset.detail = detail ?? '';
   $('mic-dot').hidden = state !== 'listening';
+  $('hud').hidden = state !== 'playing';
+  renderHud();
   $('sleep-emoji').textContent = asleep ? '☀️' : '🌙';
   $('sleep').setAttribute('aria-label', asleep ? 'Wake' : 'Sleep');
   for (const button of actionButtons) button.disabled = asleep && button.id !== 'sleep';
 }
 
+// ---------- Mini-games ----------
+
+// Called before every frame while a pet is on screen.
+function tick(dt) {
+  if (!game) return;
+  if (fx && (fx.t += dt) > 0.6) fx = null;
+  for (const event of game.update(dt)) {
+    if (event === 'spawn') sounds?.blip();
+    else if (event === 'miss') {
+      sounds?.miss();
+      fx = { kind: 'miss', t: 0 };
+    } else if (event === 'star') {
+      sounds?.ding();
+      fx = { kind: 'star', t: 0 };
+    } else if (event === 'bell') {
+      sounds?.bell();
+      fx = { kind: 'bell', t: 0 };
+    } else if (event === 'end') {
+      endGame();
+      return;
+    }
+  }
+  view.setGame({ ...game.state, fx });
+  renderHud();
+}
+
+function gameTap(zone) {
+  if (game.state.kind === 'boxing') {
+    if (!zone?.startsWith('pad')) return;
+    const slot = Number(zone.slice(3));
+    if (!game.hit(slot)) return;
+    fx = { kind: 'hit', slot, t: 0 };
+    sounds?.thud();
+  } else {
+    const push = game.push();
+    if (!push) return;
+    sounds?.whoosh();
+    if (push === 'perfect') fx = { kind: 'perfect', t: 0 };
+  }
+}
+
+function renderHud() {
+  if (!game) return;
+  const seconds = game.state.kind === 'boxing' ? BOXING.seconds : SWING.seconds;
+  $('hud-score').textContent = game.state.score;
+  $('hud-time').style.transform = `scaleX(${game.state.left / seconds})`;
+}
+
+// Best scores are kept on this device only.
+const bestKey = (kind) => `talking-pets:best:${kind}`;
+
+function bestScore(kind) {
+  try {
+    return Number(localStorage.getItem(bestKey(kind))) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function endGame() {
+  const { kind, score } = game.state;
+  const record = newRecord(score, bestScore(kind));
+  if (record) {
+    try {
+      localStorage.setItem(bestKey(kind), String(score));
+    } catch {
+      // Private browsing: the record just isn't remembered.
+    }
+  }
+  dispatch('gameOver', 'cheer', scoreLine(score, record));
+}
+
+$('hud-quit').addEventListener('click', () => dispatch('quit'));
+
+// ---------- Taps and buttons ----------
+
 holder.addEventListener('pointerdown', (e) => {
   let zone = view.pick(e.clientX, e.clientY);
+  if (state === 'playing') {
+    gameTap(zone);
+    return;
+  }
   if (!zone) return;
   if (state === 'reacting' && detail === 'dizzy') return; // too dizzy to notice
   if (zone === 'head' && state !== 'sleeping') {
@@ -273,7 +378,8 @@ for (const button of actionButtons) {
     else if (button.id === 'dress') {
       accessory = (accessory + 1) % ACCESSORIES.length;
       view.setAccessory(ACCESSORIES[accessory]);
-    } else dispatch('act', button.dataset.action);
+    } else if (button.dataset.game) dispatch('play', button.dataset.game);
+    else dispatch('act', button.dataset.action);
   });
 }
 

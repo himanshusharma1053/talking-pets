@@ -138,17 +138,26 @@ export function createSounds(ctx) {
         tone({ wave: 'square', from: TUNE[i % TUNE.length], at: i * 0.25, duration: 0.2, gain: 0.07 });
       }
     },
-    // A soft rush of air each time the swing passes the bottom.
-    swing(period) {
-      for (let i = 0; i < 4; i++) hiss({ at: 0.5 + i * (period / 2), duration: 0.5, gain: 0.14, freq: 500, q: 0.6 });
+    // ----- Game sounds -----
+    thud() {
+      hiss({ duration: 0.09, gain: 0.5, freq: 260, q: 1 });
+      tone({ from: 170, to: 60, duration: 0.12, gain: 0.45 });
     },
-    // One thud per punch.
-    punches(interval, count) {
-      for (let i = 0; i < count; i++) {
-        const at = interval * (i + 0.5);
-        hiss({ at, duration: 0.09, gain: 0.5, freq: 260, q: 1 });
-        tone({ from: 160, to: 60, at, duration: 0.12, gain: 0.45 });
-      }
+    blip() {
+      tone({ from: 660, to: 880, duration: 0.07, gain: 0.12 });
+    },
+    miss() {
+      tone({ wave: 'triangle', from: 300, to: 160, duration: 0.25, gain: 0.18 });
+    },
+    ding() {
+      tone({ from: 1320, duration: 0.5, gain: 0.2 });
+    },
+    bell() {
+      tone({ from: 1568, duration: 0.9, gain: 0.25 });
+      tone({ from: 2093, at: 0.08, duration: 0.8, gain: 0.18 });
+    },
+    fanfare() {
+      [523, 659, 784, 1047].forEach((note, i) => tone({ wave: 'square', from: note, at: i * 0.13, duration: i === 3 ? 0.5 : 0.12, gain: 0.12 }));
     },
     // Bloops as bubbles are blown, then little pops.
     bubbles() {

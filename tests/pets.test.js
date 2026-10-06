@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PETS, findPet } from '../js/pets.js';
-import { ACTIONS, REACTIONS, GREETINGS, CUES, ACCESSORIES, DIZZY_WINDOW_MS, headPoke, pickLine } from '../js/actions.js';
+import { ACTIONS, REACTIONS, GAMES, GREETINGS, CUES, ACCESSORIES, DIZZY_WINDOW_MS, headPoke, pickLine, scoreLine } from '../js/actions.js';
 
 test('there are eight pets with unique ids and names', () => {
   assert.equal(PETS.length, 8);
@@ -40,7 +40,17 @@ test('sound cues happen before their action ends', () => {
   assert.ok(CUES.toot * 1000 < ACTIONS.toot.ms);
   assert.ok(CUES.pieHit * 1000 < ACTIONS.pie.ms);
   assert.ok(CUES.ballHit * 1000 < ACTIONS.ball.ms);
-  assert.ok(CUES.swing * 1000 < ACTIONS.swing.ms);
+});
+
+test('every game has an opening line', () => {
+  for (const [name, entry] of Object.entries(GAMES)) assert.ok(entry.say.length > 0, name);
+});
+
+test('the pet reads out the score when a game ends', () => {
+  assert.equal(scoreLine(0, false), "Let's try again!");
+  assert.equal(scoreLine(1, false), 'You got 1 star! Great job!');
+  assert.equal(scoreLine(7, false), 'You got 7 stars! Great job!');
+  assert.equal(scoreLine(7, true), '7 stars! A new record!');
 });
 
 test('the trampoline action is a whole number of bounces', () => {

@@ -8,7 +8,8 @@ What comes next is in [ROADMAP.md](ROADMAP.md).
 
 - **Talks back:** say something and it repeats it in its own voice.
 - **Reacts to pokes:** head, belly, tail and feet each do something different. Poke the head three times quickly and it gets dizzy.
-- **Buttons:** feed, milk (with a burp), ball, pie in the face, swing, boxing, trampoline, bubbles, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
+- **Games:** two 30-second games with a star score and a best score kept on the device. In boxing, tap the pads as they pop up and the pet punches them. On the swing, tap to push and swing high enough to ring the bell.
+- **Buttons:** feed, milk (with a burp), ball, pie in the face, trampoline, bubbles, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
 - **Speaks:** it says its reactions aloud using the device's speech voice, so there is nothing to read.
 - **Watches you:** its head and eyes follow your finger or mouse.
 
@@ -34,6 +35,7 @@ npm test
 - `js/pet3d.js` — builds each pet's 3D model and animates it.
 - `js/actions.js` — the buttons and pokes: how long each lasts and what the pet says.
 - `js/speech.js` — the pet speaking its lines.
+- `js/games.js` — the rules of the mini-games.
 - `js/state.js` — what the pet is doing and which events change it.
 - `js/vad.js` — detects when you start and stop talking.
 - `js/voice.js` — microphone capture and pitched playback.

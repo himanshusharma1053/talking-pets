@@ -7,7 +7,8 @@ The goal: a pet app kids come back to, shipped first as an installable web app (
 - Eight pets: cat, dog, bunny, panda, fox, monkey, penguin, unicorn.
 - Talk-back: the pet repeats what you say in its own voice.
 - Pokes: head, belly, tail, feet, and a dizzy spell after three head pokes.
-- Twelve buttons: feed, milk, ball, pie, swing, boxing, trampoline, bubbles, dance, toot, dress up, sleep.
+- Two games with scores: boxing (tap the pads) and the swing (push to ring the bell).
+- Ten buttons: feed, milk, ball, pie, trampoline, bubbles, dance, toot, dress up, sleep.
 - The pet speaks its reactions aloud; there are no captions to read.
 - Installable, works offline.
 
@@ -15,8 +16,8 @@ The goal: a pet app kids come back to, shipped first as an installable web app (
 
 These turn "press a button and watch" into things kids actually play.
 
-1. **Boxing game.** The pet holds up pads; tap them as they light up. Score, streaks, a bell at the end.
-2. **Push the swing.** Swipe to push. Higher swings earn stars; the pet squeals louder the higher it goes.
+1. **Boxing and the swing are built.** Still to add: streak bonuses in boxing, and swiping (not just tapping) to push the swing.
+2. **Difficulty by age.** An easy mode with slower pads and a gentler swing for the youngest.
 3. **Catch the food.** Food falls from the top; drag the pet left and right to catch it. Yucky things (socks, broccoli) make it pull a face.
 4. **Bubble pop.** The pet blows bubbles and the child pops them. Some hold surprises.
 5. **Football penalties.** Swipe to shoot; the pet is the goalkeeper.
