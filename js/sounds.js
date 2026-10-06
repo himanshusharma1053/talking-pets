@@ -138,6 +138,33 @@ export function createSounds(ctx) {
         tone({ wave: 'square', from: TUNE[i % TUNE.length], at: i * 0.25, duration: 0.2, gain: 0.07 });
       }
     },
+    // A soft rush of air each time the swing passes the bottom.
+    swing(period) {
+      for (let i = 0; i < 4; i++) hiss({ at: 0.5 + i * (period / 2), duration: 0.5, gain: 0.14, freq: 500, q: 0.6 });
+    },
+    // One thud per punch.
+    punches(interval, count) {
+      for (let i = 0; i < count; i++) {
+        const at = interval * (i + 0.5);
+        hiss({ at, duration: 0.09, gain: 0.5, freq: 260, q: 1 });
+        tone({ from: 160, to: 60, at, duration: 0.12, gain: 0.45 });
+      }
+    },
+    // Bloops as bubbles are blown, then little pops.
+    bubbles() {
+      for (let i = 0; i < 7; i++) {
+        tone({ from: 420 + i * 40, to: 760 + i * 40, at: 0.2 + i * 0.35, duration: 0.14, gain: 0.14 });
+        tone({ from: 1900, to: 900, at: 2.3 + i * 0.3, duration: 0.05, gain: 0.16 });
+      }
+    },
+    // A springy boing on every landing.
+    bounces(interval, count) {
+      for (let i = 0; i < count; i++) {
+        const at = i * interval;
+        tone({ from: 180, to: 520, at, duration: 0.12, gain: 0.3 });
+        tone({ from: 520, to: 260, at: at + 0.12, duration: 0.3, gain: 0.25, vibrato: 50, rate: 20 });
+      }
+    },
     startSnoring() {
       snoreOnce();
       snoreTimer = setInterval(snoreOnce, 2800);

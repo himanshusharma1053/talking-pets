@@ -1,13 +1,19 @@
 {
   "name": "Talking Pets",
   "short_name": "Talking Pets",
-  "description": "A pet that repeats what you say in a funny voice. No ads.",
-  "start_url": ".",
+  "description": "A 3D pet that repeats what you say in a funny voice. No ads.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#fff8ec",
   "theme_color": "#ffd9a0",
+  "categories": ["kids", "entertainment", "games"],
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }

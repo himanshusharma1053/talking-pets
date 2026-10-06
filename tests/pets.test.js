@@ -1,17 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PETS, findPet } from '../js/pets.js';
-import { ACTIONS, REACTIONS, CUES, ACCESSORIES, DIZZY_WINDOW_MS, headPoke } from '../js/actions.js';
+import { ACTIONS, REACTIONS, GREETINGS, CUES, ACCESSORIES, DIZZY_WINDOW_MS, headPoke, pickLine } from '../js/actions.js';
 
-test('there are several pets with unique ids and names', () => {
-  assert.ok(PETS.length >= 4);
+test('there are eight pets with unique ids and names', () => {
+  assert.equal(PETS.length, 8);
   assert.equal(new Set(PETS.map((p) => p.id)).size, PETS.length);
   assert.equal(new Set(PETS.map((p) => p.name)).size, PETS.length);
 });
 
-test('every pet has a voice, a pitch, a food and all its colours', () => {
+test('every pet has a voice, a food and all its colours', () => {
   for (const pet of PETS) {
     assert.ok(pet.pitch > 0.5 && pet.pitch < 2.5, pet.id);
+    assert.ok(pet.speech.pitch >= 0 && pet.speech.pitch <= 2, pet.id);
+    assert.ok(pet.speech.rate > 0.5 && pet.speech.rate < 2, pet.id);
     assert.ok(pet.voice.pitch > 0, pet.id);
     assert.ok(pet.food && pet.emoji, pet.id);
     for (const part of ['fur', 'dark', 'belly', 'limb', 'inner', 'nose']) {
@@ -25,11 +27,12 @@ test('findPet falls back to the first pet', () => {
   assert.equal(findPet('dragon'), PETS[0]);
 });
 
-test('every action and reaction has a duration and a caption', () => {
+test('every action and reaction has a duration and something to say', () => {
   for (const [name, entry] of Object.entries({ ...ACTIONS, ...REACTIONS })) {
     assert.ok(entry.ms > 0, name);
-    assert.ok(entry.text, name);
+    assert.ok(entry.say.length > 0 && entry.say.every((line) => line.length > 0), name);
   }
+  for (const lines of Object.values(GREETINGS)) assert.ok(lines.length > 0);
 });
 
 test('sound cues happen before their action ends', () => {
@@ -37,11 +40,25 @@ test('sound cues happen before their action ends', () => {
   assert.ok(CUES.toot * 1000 < ACTIONS.toot.ms);
   assert.ok(CUES.pieHit * 1000 < ACTIONS.pie.ms);
   assert.ok(CUES.ballHit * 1000 < ACTIONS.ball.ms);
+  assert.ok(CUES.swing * 1000 < ACTIONS.swing.ms);
+});
+
+test('the trampoline action is a whole number of bounces', () => {
+  const bounces = ACTIONS.trampoline.ms / 1000 / CUES.bounce;
+  assert.ok(Math.abs(bounces - Math.round(bounces)) < 1e-9);
 });
 
 test('dress-up starts with nothing on', () => {
   assert.equal(ACCESSORIES[0], 'none');
   assert.equal(new Set(ACCESSORIES).size, ACCESSORIES.length);
+});
+
+test('pickLine covers every line and never runs off the end', () => {
+  const lines = ['a', 'b', 'c'];
+  assert.equal(pickLine(lines, 0), 'a');
+  assert.equal(pickLine(lines, 0.5), 'b');
+  assert.equal(pickLine(lines, 0.999), 'c');
+  assert.equal(pickLine(lines, 1), 'c');
 });
 
 test('three quick head pokes make the pet dizzy', () => {

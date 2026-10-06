@@ -1,21 +1,28 @@
 import { PETS, findPet } from './pets.js';
 import { nextState, micOpen } from './state.js';
-import { ACTIONS, REACTIONS, ACCESSORIES, CUES, headPoke } from './actions.js';
+import { ACTIONS, REACTIONS, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine } from './actions.js';
 import { createSounds } from './sounds.js';
 import { createVoice, playSamples } from './voice.js';
 import { createPetView, renderThumbnails } from './pet3d.js';
+import { canSpeak, say, hush, isSpeaking } from './speech.js';
 
 const MIC_REOPEN_MS = 350; // keep the mic shut briefly after the pet makes a sound
 
-// The sound that goes with each poke and each button.
+// The pet's wordless cries. When the device can speak, the pet says a line
+// instead, so only the giggle (which no speech voice does well) is kept.
+function cry(s, pet, mood, at = 0) {
+  if (!canSpeak || mood === 'giggle') s.call(pet, mood, at);
+}
+
+// The sound effects that go with each poke and each button.
 const SOUNDS = {
-  head: (s, pet) => s.call(pet, 'ouch'),
-  belly: (s, pet) => s.call(pet, 'giggle'),
-  tail: (s, pet) => s.call(pet, 'yowl'),
-  feet: (s, pet) => s.call(pet, 'happy'),
+  head: (s, pet) => cry(s, pet, 'ouch'),
+  belly: (s, pet) => cry(s, pet, 'giggle', 0.9),
+  tail: (s, pet) => cry(s, pet, 'yowl'),
+  feet: (s, pet) => cry(s, pet, 'happy'),
   dizzy: (s, pet) => {
     s.twinkle();
-    s.call(pet, 'woozy');
+    cry(s, pet, 'woozy');
   },
   feed: (s) => s.munch(),
   milk: (s) => {
@@ -24,25 +31,28 @@ const SOUNDS = {
   },
   ball: (s, pet) => {
     s.boing(CUES.ballHit);
-    s.call(pet, 'ouch', CUES.ballHit + 0.1);
+    cry(s, pet, 'ouch', CUES.ballHit + 0.1);
   },
   pie: (s, pet) => {
     s.whoosh();
     s.splat(CUES.pieHit);
-    s.call(pet, 'giggle', CUES.pieHit + 1.3);
+    cry(s, pet, 'giggle', CUES.pieHit + 1.3);
   },
   dance: (s) => s.dance(),
   toot: (s, pet) => {
     s.toot(CUES.toot);
-    s.call(pet, 'giggle', CUES.toot + 0.7);
+    cry(s, pet, 'giggle', CUES.toot + 0.9);
   },
+  swing: (s) => s.swing(CUES.swing),
+  boxing: (s) => s.punches(CUES.jab, Math.floor((ACTIONS.boxing.ms / 1000 - 0.9) / CUES.jab)),
+  bubbles: (s) => s.bubbles(),
+  trampoline: (s) => s.bounces(CUES.bounce, Math.round(ACTIONS.trampoline.ms / 1000 / CUES.bounce)),
 };
 
 const $ = (id) => document.getElementById(id);
 const picker = $('picker');
 const stage = $('stage');
 const holder = $('pet-holder');
-const statusEl = $('status');
 const micNotice = $('mic-notice');
 const actionButtons = [...document.querySelectorAll('.actions button')];
 
@@ -57,10 +67,20 @@ let sounds = null;
 let voice = null;
 let playback = null;
 let timer = null;
+let micTimer = null;
 
 // ---------- Pet picker ----------
 
-const CARD_COLORS = { cat: '#ffe3bd', dog: '#f6dcc4', bunny: '#ffdfe6', panda: '#dff0e4' };
+const CARD_COLORS = {
+  cat: '#ffe3bd',
+  dog: '#f6dcc4',
+  bunny: '#ffdfe6',
+  panda: '#dff0e4',
+  fox: '#ffd9c2',
+  monkey: '#f3e3cf',
+  penguin: '#d9e8fb',
+  unicorn: '#eedcff',
+};
 
 let thumbnails = {};
 try {
@@ -71,13 +91,12 @@ try {
 
 $('pet-grid').innerHTML = PETS.map((p) => {
   const picture = thumbnails[p.id]
-    ? `<img src="${thumbnails[p.id]}" alt="" width="240" height="300">`
+    ? `<img src="${thumbnails[p.id]}" alt="${p.kind}" width="240" height="300">`
     : `<span class="pet-emoji">${p.emoji}</span>`;
   return `
   <button class="pet-card" type="button" data-pet="${p.id}" style="--card:${CARD_COLORS[p.id]}">
     ${picture}
     <strong>${p.name}</strong>
-    <small>${p.kind} · ${p.blurb}</small>
   </button>`;
 }).join('');
 
@@ -88,6 +107,7 @@ $('pet-grid').addEventListener('click', (e) => {
 
 $('change-pet').addEventListener('click', () => {
   quiet();
+  clearInterval(micTimer);
   voice?.setEnabled(false);
   view?.dispose();
   view = null;
@@ -114,7 +134,7 @@ function choosePet(id) {
     view = emojiView();
   }
   view.setAccessory(ACCESSORIES[accessory]);
-  enter('idle');
+  enter('idle', GREETINGS.hello);
   startAudio();
 }
 
@@ -137,8 +157,8 @@ async function connectMic() {
       onEnd: (samples) => dispatch('speechEnd', samples),
       onDiscard: () => dispatch('speechDiscard'),
     });
-    voice.setEnabled(!stage.hidden && micOpen(state));
     micNotice.hidden = true;
+    if (!stage.hidden) openMic();
   } catch {
     micNotice.hidden = false;
   }
@@ -147,11 +167,31 @@ async function connectMic() {
 
 $('mic-retry').addEventListener('click', connectMic);
 
+// Open or close the mic for the current activity. It stays shut while the pet
+// is speaking a line, so the pet never hears and repeats itself.
+function openMic() {
+  clearInterval(micTimer);
+  if (!micOpen(state)) {
+    voice?.setEnabled(false);
+  } else if (isSpeaking()) {
+    voice?.setEnabled(false);
+    micTimer = setInterval(() => {
+      if (!isSpeaking()) openMic();
+    }, 200);
+  } else {
+    voice?.setEnabled(true, MIC_REOPEN_MS);
+  }
+}
+
 // ---------- Pet behaviour ----------
 
 function dispatch(event, payload) {
+  const from = state;
   const to = nextState(state, event);
-  if (to) enter(to, payload);
+  if (!to) return;
+  if (event === 'sleep') payload = to === 'sleeping' ? GREETINGS.sleep : GREETINGS.wake;
+  if (event === 'tap' && from === 'sleeping') payload = GREETINGS.wake;
+  enter(to, payload);
 }
 
 // Stop whatever the pet is doing right now.
@@ -160,51 +200,53 @@ function quiet() {
   playback?.stop();
   playback = null;
   sounds?.stopAll();
+  hush();
 }
 
+// `payload` depends on the activity: the part poked, the button pressed,
+// the recording to play back, or lines to say when going to sleep or waking.
 function enter(to, payload) {
   quiet();
   state = to;
   detail = to === 'reacting' || to === 'acting' ? payload : null;
-  voice?.setEnabled(micOpen(to), MIC_REOPEN_MS);
   view.setMouth(0);
   view.setState(to, detail);
 
   const finish = () => dispatch('done');
+  let lines = null;
   switch (to) {
     case 'talking':
       playback = playSamples(ctx, payload, pet.pitch, { onLevel: view.setMouth, onDone: finish });
       break;
     case 'reacting':
-    case 'acting':
+    case 'acting': {
+      const entry = (to === 'acting' ? ACTIONS : REACTIONS)[detail];
+      lines = entry.say;
       if (sounds) SOUNDS[detail](sounds, pet);
-      timer = setTimeout(finish, (to === 'acting' ? ACTIONS : REACTIONS)[detail].ms);
+      timer = setTimeout(finish, entry.ms);
       break;
+    }
     case 'sleeping':
+      lines = payload;
       sounds?.startSnoring();
       break;
+    case 'idle':
+      lines = Array.isArray(payload) ? payload : null;
+      break;
   }
+  if (lines) say(pickLine(lines), pet);
+  openMic();
   render();
-}
-
-function statusText() {
-  switch (state) {
-    case 'listening': return 'Listening…';
-    case 'talking': return `${pet.name} says…`;
-    case 'reacting': return REACTIONS[detail].text;
-    case 'acting': return ACTIONS[detail].text;
-    case 'sleeping': return 'Zzz… tap to wake';
-    default: return voice ? 'Say something!' : `Tap ${pet.name}!`;
-  }
 }
 
 function render() {
   if (!pet) return;
   const asleep = state === 'sleeping';
   stage.dataset.state = state;
-  statusEl.textContent = statusText();
-  $('sleep-label').textContent = asleep ? 'Wake' : 'Sleep';
+  stage.dataset.detail = detail ?? '';
+  $('mic-dot').hidden = state !== 'listening';
   $('sleep-emoji').textContent = asleep ? '☀️' : '🌙';
+  $('sleep').setAttribute('aria-label', asleep ? 'Wake' : 'Sleep');
   for (const button of actionButtons) button.disabled = asleep && button.id !== 'sleep';
 }
 
@@ -240,10 +282,11 @@ document.addEventListener('visibilitychange', () => {
   if (stage.hidden) return;
   if (document.hidden) {
     if (state !== 'sleeping') enter('idle');
-    else sounds?.stopAll();
+    else quiet();
+    clearInterval(micTimer);
     voice?.setEnabled(false);
   } else {
-    voice?.setEnabled(micOpen(state), MIC_REOPEN_MS);
+    openMic();
     if (state === 'sleeping') sounds?.startSnoring();
   }
 });

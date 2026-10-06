@@ -1,12 +1,16 @@
 // The 3D pet: builds a plush-toy model for each pet and animates it.
 
 import * as THREE from '../vendor/three.module.js';
-import { CUES } from './actions.js';
+import { ACTIONS, CUES } from './actions.js';
 
 const CLOSED = 0.08; // eye height when shut
 const TWO_PI = Math.PI * 2;
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const arc = (p) => (p <= 0 || p >= 1 ? 0 : 4 * p * (1 - p)); // 0 → 1 → 0, for jumps
+
+// The swing hangs from a point above the top of the screen.
+const SWING_TOP = 6.3;
+const SWING_LENGTH = 6;
 
 const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
 
@@ -54,6 +58,9 @@ function buildPet(pet) {
     tongue: matte('#ff8fa0'),
     line: matte('#3b2b28'),
     white: matte('#ffffff'),
+    feet: c.feet ? plush(c.feet) : null,
+    red: matte('#e63946'),
+    gold: new THREE.MeshStandardMaterial({ color: '#ffc531', roughness: 0.3, metalness: 0.35, emissive: '#6b4a00' }),
   };
 
   const sphere = new THREE.SphereGeometry(1, 48, 32);
@@ -84,25 +91,35 @@ function buildPet(pet) {
 
   // ----- Body -----
   const feet = group(root, [0, 0, 0], 'feet');
-  sides((s) => blob(feet, M.limb, 0.34, [s * 0.42, 0.2, 0.3], [1, 0.6, 1.35]));
+  sides((s) => blob(feet, M.feet ?? M.limb, 0.34, [s * 0.42, 0.2, 0.3], [1, 0.6, 1.35]));
 
   const tail = group(root, [0, 0.75, -0.65], 'tail');
-  const tube = (points, radius) => {
+  const tube = (points, radius, material = M.fur) => {
     const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
-    add(tail, new THREE.Mesh(new THREE.TubeGeometry(curve, 32, radius, 12), M.fur));
-    blob(tail, M.fur, radius, points.at(-1));
+    add(tail, new THREE.Mesh(new THREE.TubeGeometry(curve, 32, radius, 12), material));
+    blob(tail, material, radius, points.at(-1));
   };
   if (pet.id === 'cat') tube([[0, 0, 0], [0.55, 0.05, -0.3], [1.0, 0.5, -0.35], [1.0, 1.1, -0.25], [0.75, 1.45, -0.15]], 0.13);
   if (pet.id === 'dog') tube([[0, 0, 0], [0.5, 0.3, -0.25], [0.85, 0.9, -0.2]], 0.12);
   if (pet.id === 'bunny') blob(tail, M.belly, 0.3, [0.6, 0.05, 0.25]);
   if (pet.id === 'panda') blob(tail, M.dark, 0.22, [0.64, 0, 0.3]);
+  if (pet.id === 'fox') {
+    tube([[0, 0, 0], [0.6, 0.1, -0.3], [1.1, 0.6, -0.3], [1.15, 1.2, -0.2]], 0.22);
+    blob(tail, M.belly, 0.27, [1.15, 1.32, -0.2]);
+  }
+  if (pet.id === 'monkey') tube([[0, 0, 0], [0.6, 0, -0.3], [1.1, 0.4, -0.3], [1.25, 1.0, -0.2], [0.95, 1.4, -0.1], [0.7, 1.15, -0.1]], 0.09);
+  if (pet.id === 'penguin') blob(tail, M.dark, 0.2, [0.5, -0.2, 0.2]);
+  if (pet.id === 'unicorn') tube([[0, 0, 0], [0.6, 0.3, -0.3], [1.05, 0.2, -0.2], [1.25, -0.3, -0.1]], 0.17, M.dark);
 
   const torso = group(root, [0, 0, 0], 'belly');
   blob(torso, M.fur, 0.85, [0, 1.2, 0], [1, 1.12, 0.92]);
   blob(torso, M.belly, 0.6, [0, 1.08, 0.42], [1, 1.15, 0.7]);
+  const gloves = [];
   const [armL, armR] = sides((s) => {
     const pivot = group(torso, [s * 0.74, 1.72, 0.05]);
-    add(pivot, new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.5, 8, 16), M.limb), [0, -0.42, 0]);
+    const arm = add(pivot, new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.5, 8, 16), M.limb), [0, -0.42, 0]);
+    if (pet.id === 'penguin') arm.scale.z = 0.45; // flippers
+    gloves.push(blob(pivot, M.red, 0.28, [0, -0.8, 0])); // boxing gloves, hidden until needed
     return pivot;
   });
 
@@ -136,9 +153,43 @@ function buildPet(pet) {
     });
   }
 
-  const big = pet.id === 'dog' ? 1.2 : 1; // dogs get a bigger muzzle
-  blob(head, M.belly, 0.36 * big, [0, 0.55, 0.72], [1.25, 0.85, 0.8]);
-  blob(head, M.nose, 0.1 * big, [0, 0.69, 0.72 + 0.28 * big], [1.35, 0.9, 0.8]);
+  if (pet.id === 'fox') {
+    sides((s) => {
+      cone(head, M.fur, 0.36, 0.8, [s * 0.6, 1.62, 0], [0, 0, -s * 0.3]);
+      cone(head, M.dark, 0.2, 0.5, [s * 0.59, 1.62, 0.14], [0, 0, -s * 0.3]);
+      blob(head, M.belly, 0.42, [s * 0.52, 0.5, 0.42], [1.1, 0.8, 0.8]); // white cheeks
+    });
+  }
+  if (pet.id === 'monkey') {
+    sides((s) => {
+      blob(head, M.fur, 0.32, [s * 1.02, 0.85, 0], [1, 1, 0.5]);
+      blob(head, M.inner, 0.2, [s * 1.04, 0.85, 0.1], [1, 1, 0.4]);
+    });
+    blob(head, M.belly, 0.66, [0, 0.78, 0.36], [1.08, 0.95, 0.85]); // pale face
+    blob(head, M.fur, 0.2, [0, 1.64, 0.2], [1, 1.2, 1]); // tuft of hair
+  }
+  if (pet.id === 'penguin') {
+    blob(head, M.belly, 0.6, [0, 0.74, 0.44], [1.1, 0.95, 0.8]); // white face
+    cone(head, M.nose, 0.17, 0.42, [0, 0.62, 1.02], [Math.PI / 2, 0, 0]); // beak
+  }
+  if (pet.id === 'unicorn') {
+    sides((s) => {
+      cone(head, M.fur, 0.2, 0.5, [s * 0.55, 1.6, 0], [0, 0, -s * 0.3]);
+      cone(head, M.inner, 0.11, 0.32, [s * 0.54, 1.58, 0.09], [0, 0, -s * 0.3]);
+    });
+    cone(head, M.gold, 0.13, 0.8, [0, 1.95, 0.3], [0.3, 0, 0]); // horn
+    const mane = ['#ff8ad4', '#b28dff', '#7cc6fe', '#ff8ad4', '#b28dff'];
+    [[0.2, 1.6, 0.3], [0, 1.68, -0.1], [-0.1, 1.5, -0.5], [0.05, 1.15, -0.8], [-0.05, 0.75, -0.9]].forEach((spot, i) => {
+      blob(head, plush(mane[i]), 0.27, spot);
+    });
+  }
+
+  const hasBeak = pet.id === 'penguin';
+  const big = { dog: 1.2, fox: 1.08, unicorn: 1.12 }[pet.id] ?? 1; // muzzle size
+  if (!hasBeak) {
+    blob(head, M.belly, 0.36 * big, [0, 0.55, 0.72], [1.25, 0.85, 0.8]);
+    blob(head, M.nose, 0.1 * big, [0, 0.69, 0.72 + 0.28 * big], [1.35, 0.9, 0.8]);
+  }
   sides((s) => blob(head, flat('#ff8fa0', 0.38), 0.15, [s * 0.66, 0.52, 0.6], [1, 0.8, 0.35], [0, s * 0.6, 0]));
 
   if (pet.id === 'cat' || pet.id === 'bunny') {
@@ -150,9 +201,10 @@ function buildPet(pet) {
     });
   }
 
+  const eyeZ = pet.id === 'monkey' || pet.id === 'penguin' ? 0.84 : 0.74; // sit on top of the face patch
   const pupils = [];
   const eyes = sides((s) => {
-    const eye = group(head, [s * 0.36, 0.95, 0.74]);
+    const eye = group(head, [s * 0.36, 0.95, eyeZ]);
     blob(eye, M.eye, 0.21, [0, 0, 0], [1, 1.15, 0.55]);
     const pupil = group(eye, [0, 0, 0.09]);
     blob(pupil, M.pupil, 0.12, [0, 0, 0], [1, 1.1, 0.5]);
@@ -161,7 +213,7 @@ function buildPet(pet) {
     return eye;
   });
 
-  const mouthZ = 0.7 + 0.27 * big;
+  const mouthZ = hasBeak ? 0.86 : 0.7 + 0.27 * big;
   const mouth = group(head, [0, 0.4, mouthZ]);
   blob(mouth, M.mouth, 0.15, [0, 0, 0], [1.15, 1, 0.5]);
   blob(mouth, M.tongue, 0.09, [0, -0.05, 0.04], [1, 0.6, 0.5]);
@@ -184,7 +236,7 @@ function buildPet(pet) {
   blob(hat, matte('#ffd23f'), 0.12, [0, 0.93, 0]);
   add(hat, new THREE.Mesh(new THREE.TorusGeometry(0.39, 0.05, 10, 32), matte('#ffd23f')), [0, 0.02, 0], [Math.PI / 2, 0, 0]);
 
-  const gold = new THREE.MeshStandardMaterial({ color: '#ffc531', roughness: 0.3, metalness: 0.35, emissive: '#6b4a00' });
+  const gold = M.gold;
   const crown = (accessories.crown = group(head, [0, 1.6, 0]));
   add(crown, new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.38, 0.28, 28), gold), [0, 0.14, 0]);
   for (let i = 0; i < 6; i++) {
@@ -197,7 +249,7 @@ function buildPet(pet) {
   sides((s) => blob(shades, glossy('#16161c'), 0.27, [s * 0.36, 0, 0], [1, 0.85, 0.3]));
   add(shades, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.05), glossy('#16161c')), [0, 0.06, 0.03]);
 
-  const red = matte('#e63946');
+  const red = M.red;
   const bow = (accessories.bow = group(root, [0, 1.93, 0.56], 'belly'));
   sides((s) => cone(bow, red, 0.2, 0.36, [s * 0.2, 0, 0], [0, 0, (s * Math.PI) / 2]));
   blob(bow, red, 0.1, [0, 0, 0.02]);
@@ -222,9 +274,29 @@ function buildPet(pet) {
     ball,
   };
   P.milk.material.rotation = 0.6;
-  props.add(P.food, P.milk, P.cloud, P.pie, ...P.notes, ...P.zzz, ball);
 
-  return { root, props, head, armL, armR, tail, eyes, pupils, mouth, smile, cream, accessories, P, hideable: [...props.children, ...stars, cream] };
+  const wood = matte('#b5793f');
+  P.swing = group(props, [0, SWING_TOP, 0]);
+  const rope = new THREE.CylinderGeometry(0.03, 0.03, SWING_LENGTH);
+  sides((s) => add(P.swing, new THREE.Mesh(rope, wood), [s * 0.98, -SWING_LENGTH / 2, 0]));
+  add(P.swing, new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.12, 0.85), wood), [0, -SWING_LENGTH, 0]);
+
+  P.bag = group(props, [1.35, 5.4, 0.75]);
+  add(P.bag, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.4), M.line), [0, -1.2, 0]);
+  add(P.bag, new THREE.Mesh(new THREE.CapsuleGeometry(0.45, 1.2, 8, 24), matte('#c1272d')), [0, -3.3, 0]);
+  add(P.bag, new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.05, 8, 28), M.white), [0, -3.3, 0], [Math.PI / 2, 0, 0]);
+
+  P.trampoline = group(props);
+  add(P.trampoline, new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.1, 40), matte('#3a86ff')), [0, 0.3, 0]).receiveShadow = true;
+  add(P.trampoline, new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.1, 10, 40), M.line), [0, 0.3, 0], [Math.PI / 2, 0, 0]);
+
+  const soap = new THREE.MeshStandardMaterial({ color: '#cfefff', transparent: true, opacity: 0.45, roughness: 0.05 });
+  P.bubbles = Array.from({ length: 7 }, () => new THREE.Mesh(sphere, soap));
+  P.gloves = gloves;
+
+  props.add(P.food, P.milk, P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles);
+
+  return { root, props, head, armL, armR, tail, eyes, pupils, mouth, smile, cream, accessories, P, hideable: [...props.children, ...stars, ...gloves, cream] };
 }
 
 // Work out where every part should be for the current activity, then ease towards it.
@@ -239,8 +311,12 @@ function pose(m, v, dt, snap) {
     headRx: -v.look.y * 0.2,
     headRy: v.look.x * 0.4,
     headRz: 0,
+    z: 0,
+    rx: 0,
     armL: -0.35,
     armR: 0.35,
+    armLx: 0, // arms swinging forwards, for punches
+    armRx: 0,
     eyes: time % 4.2 > 4.05 ? CLOSED : 1, // blink
     eyeSize: 1,
     mouth: 0,
@@ -405,6 +481,76 @@ function pose(m, v, dt, snap) {
       });
       break;
 
+    case 'swing': {
+      const ramp = Math.min(1, t / 0.8, Math.max(0, (ACTIONS.swing.ms / 1000 - t) / 0.8));
+      const angle = Math.sin((t * TWO_PI) / CUES.swing) * 0.42 * ramp;
+      P.swing.visible = true;
+      P.swing.rotation.x = -angle;
+      T.rx = -angle;
+      T.z = Math.sin(angle) * SWING_LENGTH;
+      T.y = SWING_TOP - Math.cos(angle) * SWING_LENGTH + 0.06;
+      T.armL = -2.75;
+      T.armR = 2.75;
+      T.mouth = 0.6 + 0.3 * Math.abs(Math.sin(angle * 3));
+      T.eyeSize = 1.15;
+      T.headRx = angle * 0.3;
+      T.wag = 3;
+      break;
+    }
+
+    case 'boxing': {
+      const victory = t - (ACTIONS.boxing.ms / 1000 - 0.9);
+      P.bag.visible = true;
+      for (const glove of P.gloves) glove.visible = true;
+      if (victory < 0) {
+        const beat = t / CUES.jab; // one punch per beat, arms taking turns
+        const punch = Math.sin((beat % 1) * Math.PI);
+        const left = Math.floor(beat) % 2 === 0;
+        T.ry = 0.9;
+        T.armL = -0.15;
+        T.armR = 0.15;
+        T.armLx = left ? -1.5 * punch : -0.5;
+        T.armRx = left ? -0.5 : -1.5 * punch;
+        T.y = Math.abs(Math.sin(t * 9)) * 0.08;
+        T.headRx = 0.1;
+        T.mouth = punch > 0.6 ? 0.5 : 0.1;
+        P.bag.rotation.z = Math.sin(((beat + 0.6) % 1) * Math.PI) ** 2 * 0.2;
+      } else {
+        T.armL = -2.6;
+        T.armR = 2.6;
+        T.y = arc(victory / 0.6) * 0.6;
+        T.mouth = 0.9;
+        T.eyes = CLOSED;
+        P.bag.rotation.z = Math.sin(t * 6) * 0.05;
+      }
+      break;
+    }
+
+    case 'bubbles':
+      T.mouth = 0.3;
+      T.headRx = -0.12;
+      T.armR = 1.6;
+      P.bubbles.forEach((bubble, i) => {
+        const p = (t - 0.2 - i * 0.35) / 2.1;
+        if (p <= 0 || p >= 1) return;
+        show(bubble, Math.sin(i * 2.3) * 1.3 * p + Math.sin(t * 3 + i) * 0.08, 2.45 + p * 2.4, 1.3 + Math.cos(i * 1.7) * 0.4 * p, 0.1 + p * 0.22 + (i % 3) * 0.03);
+      });
+      break;
+
+    case 'trampoline': {
+      const count = Math.floor(t / CUES.bounce);
+      const p = (t / CUES.bounce) % 1;
+      P.trampoline.visible = true;
+      T.y = 0.36 + arc(p) * 0.75;
+      T.squash = p < 0.12 || p > 0.88 ? 0.12 : -0.04;
+      T.ry = (Math.floor(count / 2) + (count % 2 ? p : 0)) * TWO_PI; // a full spin on every other bounce
+      T.armL = -2.3;
+      T.armR = 2.3;
+      T.mouth = 0.7;
+      T.eyeSize = 1.1;
+      break;
+    }
+
     case 'toot': {
       const u = t - CUES.toot;
       if (u < 0) {
@@ -428,12 +574,12 @@ function pose(m, v, dt, snap) {
   const ease = snap ? 1 : 1 - Math.exp(-dt * 22);
   for (const key in T) C[key] += (T[key] - C[key]) * ease;
 
-  m.root.position.y = C.y;
-  m.root.rotation.set(0, C.ry, C.rz);
+  m.root.position.set(0, C.y, C.z);
+  m.root.rotation.set(C.rx, C.ry, C.rz);
   m.root.scale.set(1 + C.squash * 0.5, 1 - C.squash, 1 + C.squash * 0.5);
   m.head.rotation.set(C.headRx, C.headRy, C.headRz);
-  m.armL.rotation.z = C.armL;
-  m.armR.rotation.z = C.armR;
+  m.armL.rotation.set(C.armLx, 0, C.armL);
+  m.armR.rotation.set(C.armRx, 0, C.armR);
   v.wagPhase += dt * 6 * C.wag;
   m.tail.rotation.z = Math.sin(v.wagPhase) * 0.16;
   for (const eye of m.eyes) eye.scale.set(C.eyeSize, C.eyes * C.eyeSize, 1);
@@ -555,6 +701,8 @@ export function createPetView(container, pet) {
     // `detail` is the part poked (reacting) or the button pressed (acting).
     setState(state, detail = null) {
       Object.assign(v, { state, detail, t: 0 });
+      // Forget whole turns left over from a spin, so the pet doesn't unwind them.
+      v.cur.ry = ((((v.cur.ry + Math.PI) % TWO_PI) + TWO_PI) % TWO_PI) - Math.PI;
       step(0);
     },
     setMouth(level) {
