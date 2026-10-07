@@ -208,6 +208,65 @@ button {
   text-align: center;
 }
 
+/* Memory match: the cards, shown only while that game is on. */
+.board {
+  display: none;
+  grid-template-columns: repeat(var(--columns, 4), 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.stage[data-state="playing"][data-detail="match"] .board { display: grid; }
+
+.card {
+  aspect-ratio: 1;
+  max-height: 14vh;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: #ffb65c;
+  box-shadow: 0 4px 0 var(--ink);
+  font-size: clamp(1.4rem, 7vw, 2.4rem);
+  touch-action: none;
+}
+
+.card.down { opacity: 0.95; filter: grayscale(0.2); }
+.card.up, .card.matched { background: #fff; animation: turn 0.2s ease-out; }
+.card.matched { background: #d6f5d6; box-shadow: none; transform: translateY(4px); }
+
+@keyframes turn { from { transform: scaleX(0.1); } }
+
+/* Painting: the colours, shown only while painting. */
+.palette {
+  display: none;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.stage[data-state="playing"][data-detail="paint"] .palette { display: grid; }
+/* Painting has no score and no clock. */
+.stage[data-detail="paint"] .hud-score,
+.stage[data-detail="paint"] .hud-time { visibility: hidden; }
+
+.swatch {
+  aspect-ratio: 1;
+  max-height: 9vh;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--color, #fff);
+  box-shadow: 0 4px 0 var(--ink);
+  font-size: 1.5rem;
+  justify-self: center;
+  width: 100%;
+  max-width: 9vh;
+}
+
+.swatch.on { outline: 4px solid #fff; outline-offset: 2px; transform: scale(1.12); }
+
 /* The piano keyboard, shown only while the piano game is on. */
 .piano {
   display: none;
@@ -264,7 +323,7 @@ button {
   gap: 8px;
 }
 
-.games { grid-template-columns: repeat(4, 1fr); }
+.games { grid-template-columns: repeat(5, 1fr); }
 .actions { grid-template-columns: repeat(9, 1fr); gap: 5px; }
 .actions button { border-radius: 12px; border-width: 2px; box-shadow: 0 3px 0 var(--ink); }
 .actions .emoji { font-size: 1.25rem; }

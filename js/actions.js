@@ -43,6 +43,8 @@ export const GAMES = {
   piano: { say: ['Play the shiny key!', "Let's make music!"] },
   hide: { say: ['Hide and seek! Find me!', 'I am going to hide!'] },
   simon: { say: ['Watch me, then copy!', 'Copy what I do!'] },
+  match: { say: ['Find the two that match!', 'Turn over the cards!'] },
+  paint: { say: ['Paint me any colour you like!', 'Make me colourful!'] },
 };
 
 // Short things the pet says inside the games.
@@ -52,6 +54,8 @@ export const GAME_LINES = {
   round: ['Well done!', 'Clever you!', 'Yes!'],
   wrong: ['Oops! Watch again.', 'Not quite. Watch me!'],
   parts: { head: 'Head!', tummy: 'Tummy!', feet: 'Feet!' },
+  match: ['A match!', 'You got it!', 'Yes!'],
+  painted: ['Ooh, pretty!', 'I love it!', 'That tickles!', 'So colourful!'],
 };
 
 // What the pet says when a game ends.

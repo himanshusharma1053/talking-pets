@@ -487,12 +487,27 @@ function buildPet(pet) {
 
   props.add(...P.puffs, P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles, ...P.falling, P.yuck, P.pow, P.sparkle, P.star, P.bell, ...P.confetti);
 
+  // Split the fur into separately paintable regions (head, ears, tummy, arms…):
+  // each part of the body gets its own copy of each colour it uses.
+  const kinds = new Map(['fur', 'dark', 'belly', 'limb', 'inner', 'feet'].filter((kind) => M[kind]).map((kind) => [M[kind], kind]));
+  const paintable = {};
+  for (const part of [feet, tail, torso, head]) {
+    part.traverse((mesh) => {
+      const kind = kinds.get(mesh.material);
+      if (!kind) return;
+      const region = `${part.userData.zone}:${kind}`;
+      paintable[region] ??= Object.assign(mesh.material.clone(), { userData: { original: `#${mesh.material.color.getHexString()}` } });
+      mesh.material = paintable[region];
+      mesh.userData.paint = region;
+    });
+  }
+
   for (const ear of ears) ear.userData.rest = ear.rotation.z;
   for (const cheek of cheeks) cheek.userData.rest = cheek.scale.clone();
 
   return {
     root, props, head, armL, armR, tail, eyes, pupils, mouth, smile, cream, accessories, P,
-    ears, cheeks, meal, crumbs, glass, milk, moustache,
+    ears, cheeks, paintable, meal, crumbs, glass, milk, moustache,
     hideable: [...props.children, ...stars, ...gloves, ...crumbs, cream, meal, glass, moustache],
   };
 }
@@ -1003,6 +1018,38 @@ function pose(m, v, dt, snap) {
       break;
     }
 
+    case 'match-game': {
+      const fx = v.game?.fx;
+      // Watching the cards below.
+      T.headRx = 0.18;
+      T.pupilY = -0.04;
+      if (fx?.kind === 'match') {
+        T.y = arc(fx.t / 0.45) * 0.4;
+        T.armL = -2.5;
+        T.armR = 2.5;
+        T.eyes = CLOSED;
+        T.mouth = 0.9;
+        T.headRx = 0;
+      } else if (fx?.kind === 'miss') {
+        T.headRy = Math.sin(fx.t * 16) * 0.25; // "hmm, no"
+        T.mouth = 0.15;
+      }
+      break;
+    }
+
+    case 'paint-game': {
+      const fx = v.game?.fx;
+      // Arms out, so every part is easy to reach.
+      T.armL = -0.9;
+      T.armR = 0.9;
+      if (fx?.kind === 'paint' && fx.t < 0.4) {
+        T.squash = Math.sin(fx.t * 30) * 0.04; // it tickles
+        T.eyes = CLOSED;
+        T.mouth = 0.7;
+      }
+      break;
+    }
+
     case 'piano-game': {
       const fx = v.game?.fx;
       // Swaying along, arms out like a conductor.
@@ -1234,6 +1281,7 @@ export function createPetView(container, pet) {
 
   const v = newViewState();
   const raycaster = new THREE.Raycaster();
+  const painted = {};
 
   let ticker = null;
 
@@ -1301,6 +1349,43 @@ export function createPetView(container, pet) {
     // Call `fn(dt)` before every frame is drawn.
     setTicker(fn) {
       ticker = fn;
+    },
+    // Paint whatever part of the pet is under this screen point. Returns the
+    // name of the region painted, or null if nothing paintable is there.
+    paint(clientX, clientY, color) {
+      const rect = canvas.getBoundingClientRect();
+      const point = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(point, camera);
+      for (const hit of raycaster.intersectObject(model.root, true)) {
+        const region = hit.object.userData.paint; // eyes, nose and the like have none: look behind them
+        let shown = Boolean(region);
+        for (let item = hit.object; item && shown; item = item.parent) shown = item.visible;
+        if (!shown) continue;
+        model.paintable[region].color.set(color);
+        painted[region] = color;
+        return region;
+      }
+      return null;
+    },
+    // The colours the pet has been painted, as { region: colour }.
+    getPaint() {
+      return { ...painted };
+    },
+    setPaint(colors) {
+      for (const [region, color] of Object.entries(colors)) {
+        if (!model.paintable[region]) continue;
+        model.paintable[region].color.set(color);
+        painted[region] = color;
+      }
+      step(0);
+    },
+    // Back to the colours it was born with.
+    clearPaint() {
+      for (const region of Object.keys(painted)) {
+        model.paintable[region].color.set(model.paintable[region].userData.original);
+        delete painted[region];
+      }
+      step(0);
     },
     // Where a line from this screen point meets an upright wall `z` units from
     // the pet's home spot: { x, y } in the pet's own units.

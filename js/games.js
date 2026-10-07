@@ -518,6 +518,101 @@ export function createSimon(random = Math.random) {
   };
 }
 
+export const MATCH = {
+  seconds: 60,
+  firstPairs: 3, // the first board is small; each one after has a pair more
+  maxPairs: 6,
+  showTime: 0.9, // seconds two cards that don't match stay face up
+  clearTime: 1.0, // seconds to admire a finished board before the next
+};
+export const FACES = ['🐱', '🐶', '🐰', '🐼', '🦊', '🐵', '🐧', '🦄'];
+
+// Cards lie face down. Turn over two; if they match they stay.
+export function createMatch(random = Math.random) {
+  function shuffle(list) {
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.min(i, Math.floor(random() * (i + 1)));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    return list;
+  }
+  const deal = (pairs) => {
+    const faces = shuffle([...FACES]).slice(0, pairs);
+    return shuffle([...faces, ...faces]).map((face) => ({ face, up: false, matched: false }));
+  };
+  const g = { kind: 'match', seconds: MATCH.seconds, time: 0, left: MATCH.seconds, score: 0, pairs: MATCH.firstPairs, cards: deal(MATCH.firstPairs), open: [], wait: 0, cleared: 0, over: false };
+
+  function turnBack() {
+    for (const i of g.open) g.cards[i].up = false;
+    g.open = [];
+    g.wait = 0;
+  }
+
+  return {
+    state: g,
+    // Move time on by dt seconds. Returns what happened: 'deal', 'end'.
+    update(dt) {
+      const events = [];
+      if (g.over) return events;
+      g.time += dt;
+      g.left = Math.max(0, MATCH.seconds - g.time);
+      if (g.left === 0) {
+        g.over = true;
+        events.push('end');
+        return events;
+      }
+      if (g.wait > 0 && (g.wait -= dt) <= 0) turnBack();
+      if (g.cleared > 0 && (g.cleared -= dt) <= 0) {
+        g.pairs = Math.min(MATCH.maxPairs, g.pairs + 1);
+        g.cards = deal(g.pairs);
+        g.cleared = 0;
+        events.push('deal');
+      }
+      return events;
+    },
+    // Turn over card `i`. Returns 'flip' for the first of a pair, 'match' or
+    // 'miss' for the second, or null if that card can't be turned.
+    flip(i) {
+      const card = g.cards[i];
+      if (g.over || !card || card.matched) return null;
+      if (g.wait > 0) turnBack(); // no need to wait for the last two to turn back
+      if (card.up) return null;
+      card.up = true;
+      g.open.push(i);
+      if (g.open.length === 1) return 'flip';
+      const [first, second] = g.open.map((index) => g.cards[index]);
+      if (first.face !== second.face) {
+        g.wait = MATCH.showTime;
+        return 'miss';
+      }
+      first.matched = second.matched = true;
+      g.open = [];
+      g.score += 1;
+      if (g.cards.every((each) => each.matched)) g.cleared = MATCH.clearTime;
+      return 'match';
+    },
+  };
+}
+
+export const PALETTE = ['#ff5d5d', '#ff9f43', '#ffd93d', '#6bcb77', '#4dd4c0', '#4d96ff', '#9b72f2', '#ff7ac3', '#ffffff', '#8d5a3b', '#3a3a44'];
+
+// Painting the pet: no clock and no score, it goes on until you stop.
+export function createPaint() {
+  const g = { kind: 'paint', seconds: 1, time: 0, left: 1, score: 0, color: PALETTE[0], strokes: 0, over: false };
+  return {
+    state: g,
+    update() {
+      return [];
+    },
+    choose(color) {
+      if (PALETTE.includes(color)) g.color = color;
+    },
+    stroke() {
+      g.strokes += 1;
+    },
+  };
+}
+
 // Compare a finished game's score with the best so far.
 export function newRecord(score, best) {
   return score > 0 && score > (best ?? 0);

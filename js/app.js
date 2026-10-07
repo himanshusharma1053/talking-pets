@@ -1,7 +1,10 @@
 import { PETS, findPet } from './pets.js';
 import { nextState, micOpen } from './state.js';
 import { ACTIONS, REACTIONS, GAMES, GAME_LINES, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine, scoreLine } from './actions.js';
-import { POP, PENALTY, SCALE, createBoxing, createSwing, createCatch, createPop, createPenalty, createPiano, createHide, createSimon, newRecord } from './games.js';
+import {
+  POP, PENALTY, SCALE, PALETTE, createBoxing, createSwing, createCatch, createPop, createPenalty,
+  createPiano, createHide, createSimon, createMatch, createPaint, newRecord,
+} from './games.js';
 import { createSounds } from './sounds.js';
 import { createVoice, playSamples } from './voice.js';
 import { createPetView, renderThumbnails } from './pet3d.js';
@@ -57,6 +60,7 @@ const actionButtons = [...document.querySelectorAll('.controls button')];
 const NEW_GAME = {
   boxing: createBoxing, swing: createSwing, catch: createCatch, pop: createPop,
   penalty: createPenalty, piano: createPiano, hide: createHide, simon: createSimon,
+  match: createMatch, paint: createPaint,
 };
 // In Simon says: the part of the pet you tap, the move it stands for, and its note.
 const SIMON_MOVE = { head: 'head', belly: 'tummy', feet: 'feet' };
@@ -138,6 +142,10 @@ function emojiView() {
     setGame: nothing,
     worldX: () => 0,
     aim: () => ({ x: 0, y: 0 }),
+    paint: () => null,
+    getPaint: () => ({}),
+    setPaint: nothing,
+    clearPaint: nothing,
     setTicker: (fn) => (clock = setInterval(() => fn(0.05), 50)),
     dispose: () => clearInterval(clock),
     pick: () => 'belly',
@@ -156,6 +164,7 @@ function choosePet(id) {
     view = emojiView();
   }
   view.setAccessory(ACCESSORIES[accessory]);
+  view.setPaint(savedPaint(pet.id));
   view.setTicker(tick);
   enter('idle', GREETINGS.hello);
   startAudio();
@@ -258,6 +267,8 @@ function enter(to, payload, line) {
       game = NEW_GAME[detail]();
       view.setGame(game.state);
       lines = GAMES[detail].say;
+      boardShown = '';
+      showColor();
       break;
     case 'sleeping':
       lines = payload;
@@ -313,6 +324,7 @@ function tick(dt) {
       sounds?.cheer();
       say('Goal!', pet);
     } else if (event === 'save') sounds?.boing();
+    else if (event === 'deal') sounds?.flourish();
     else if (event === 'hidden') say(pickLine(GAME_LINES.hidden), pet);
     else if (event === 'peek') sounds?.call(pet, 'giggle');
     else if (event === 'show') {
@@ -363,8 +375,15 @@ function gameTap(zone, clientX, clientY) {
       sounds?.ding();
       say(pickLine(GAME_LINES.round), pet);
     }
-  } else if (kind === 'piano') {
-    // The piano is played on its own keys, not on the pet.
+  } else if (kind === 'paint') {
+    if (!view.paint(clientX, clientY, game.state.color)) return;
+    game.stroke();
+    sounds?.pop();
+    fx = { kind: 'paint', t: 0 };
+    if (game.state.strokes % 4 === 1) say(pickLine(GAME_LINES.painted), pet);
+    savePaint();
+  } else if (kind === 'piano' || kind === 'match') {
+    // These are played on their own keys and cards, not on the pet.
   } else if (kind === 'pop') {
     if (!zone?.startsWith('bubble')) return;
     // Each bubble on screen is drawn in the slot given by its id.
@@ -384,6 +403,7 @@ function gameTap(zone, clientX, clientY) {
 function renderHud() {
   if (!game) return;
   $('hud-score').textContent = game.state.score;
+  if (game.state.kind === 'match') renderBoard();
   pianoKeys.forEach((key, i) => key.classList.toggle('next', game.state.kind === 'piano' && i === game.state.next));
   $('hud-time').style.transform = `scaleX(${game.state.left / game.state.seconds})`;
 }
@@ -413,6 +433,85 @@ function endGame() {
 }
 
 $('hud-quit').addEventListener('click', () => dispatch('quit'));
+
+// ----- Memory match: the cards -----
+
+const board = $('board');
+let boardShown = '';
+
+// Redraw the cards, but only when something about them has changed.
+function renderBoard() {
+  const { cards } = game.state;
+  const now = cards.map((card) => (card.matched ? 'm' : card.up ? 'u' : 'd') + card.face).join('');
+  if (now === boardShown) return;
+  boardShown = now;
+  board.style.setProperty('--columns', cards.length <= 6 ? 3 : cards.length === 10 ? 5 : 4);
+  board.innerHTML = cards.map((card, i) => {
+    const state = card.matched ? 'matched' : card.up ? 'up' : 'down';
+    return `<button type="button" class="card ${state}" data-card="${i}" aria-label="Card ${i + 1}">${card.up || card.matched ? card.face : '🐾'}</button>`;
+  }).join('');
+}
+
+board.addEventListener('pointerdown', (e) => {
+  const card = e.target.closest('[data-card]');
+  if (!card || game?.state.kind !== 'match') return;
+  const result = game.flip(Number(card.dataset.card));
+  if (!result) return;
+  if (result === 'flip') sounds?.blip();
+  else if (result === 'miss') {
+    sounds?.miss();
+    fx = { kind: 'miss', t: 0 };
+  } else {
+    sounds?.ding();
+    fx = { kind: 'match', t: 0 };
+    say(pickLine(GAME_LINES.match), pet);
+  }
+  renderBoard();
+});
+
+// ----- Painting: the colours -----
+
+const palette = $('palette');
+palette.innerHTML =
+  PALETTE.map((color) => `<button type="button" class="swatch" data-color="${color}" style="--color:${color}" aria-label="Colour"></button>`).join('') +
+  '<button type="button" class="swatch wash" id="wash" aria-label="Wash the paint off">🧽</button>';
+
+function showColor() {
+  for (const swatch of palette.querySelectorAll('[data-color]')) swatch.classList.toggle('on', swatch.dataset.color === game?.state.color);
+}
+
+palette.addEventListener('click', (e) => {
+  const swatch = e.target.closest('.swatch');
+  if (!swatch || game?.state.kind !== 'paint') return;
+  if (swatch.id === 'wash') {
+    view.clearPaint();
+    savePaint();
+    sounds?.whoosh();
+  } else {
+    game.choose(swatch.dataset.color);
+    sounds?.blip();
+    showColor();
+  }
+});
+
+// Each pet's paint is kept on this device, so it stays painted next time.
+const paintKey = (id) => `talking-pets:paint:${id}`;
+
+function savedPaint(id) {
+  try {
+    return JSON.parse(localStorage.getItem(paintKey(id))) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function savePaint() {
+  try {
+    localStorage.setItem(paintKey(pet.id), JSON.stringify(view.getPaint()));
+  } catch {
+    // Private browsing: the paint just isn't remembered.
+  }
+}
 
 pianoKeys.forEach((key, i) => {
   key.addEventListener('pointerdown', () => {
