@@ -382,6 +382,142 @@ export function createPiano() {
   };
 }
 
+export const HIDE = {
+  seconds: 45,
+  spotX: [-1.75, 0, 1.75], // where the three hiding places stand
+  hideTime: 0.9, // seconds the pet takes to hide, unseen
+  foundTime: 1.5, // seconds of celebrating before it hides again
+  peekEvery: 1.8, // how often it peeks out
+  peekLength: 0.8, // how long each peek lasts
+  wrongTime: 0.6, // how long a wrong guess wobbles
+};
+
+// The pet hides behind one of three things and peeks out now and then.
+export function createHide(random = Math.random) {
+  const spots = HIDE.spotX.length;
+  // Never the same hiding place twice in a row.
+  const choose = (last) => (Math.max(0, last) + (last < 0 ? Math.floor(random() * spots) : 1 + Math.floor(random() * (spots - 1)))) % spots;
+  const g = { kind: 'hide', seconds: HIDE.seconds, time: 0, left: HIDE.seconds, score: 0, phase: 'hiding', t: 0, spot: choose(-1), peek: 0, wrong: null, over: false };
+
+  return {
+    state: g,
+    // Move time on by dt seconds. Returns what happened: 'hidden', 'peek', 'end'.
+    update(dt) {
+      const events = [];
+      if (g.over) return events;
+      g.time += dt;
+      g.left = Math.max(0, HIDE.seconds - g.time);
+      if (g.left === 0) {
+        g.over = true;
+        events.push('end');
+        return events;
+      }
+      g.t += dt;
+      if (g.wrong && (g.wrong.t += dt) > HIDE.wrongTime) g.wrong = null;
+
+      if (g.phase === 'hiding' && g.t >= HIDE.hideTime) {
+        Object.assign(g, { phase: 'hidden', t: 0 });
+        events.push('hidden');
+      } else if (g.phase === 'hidden') {
+        const cycle = g.t % HIDE.peekEvery;
+        const wasOut = g.peek > 0;
+        g.peek = cycle < HIDE.peekLength ? Math.sin((cycle / HIDE.peekLength) * Math.PI) : 0; // out and back in
+        if (!wasOut && g.peek > 0) events.push('peek');
+      } else if (g.phase === 'found' && g.t >= HIDE.foundTime) {
+        Object.assign(g, { phase: 'hiding', t: 0, spot: choose(g.spot) });
+      }
+      return events;
+    },
+    // Look behind this hiding place. Returns 'found', 'wrong', or null if it isn't hiding yet.
+    guess(spot) {
+      if (g.over || g.phase !== 'hidden') return null;
+      if (spot !== g.spot) {
+        g.wrong = { spot, t: 0 };
+        return 'wrong';
+      }
+      g.score += 1;
+      Object.assign(g, { phase: 'found', t: 0, peek: 0, wrong: null });
+      return 'found';
+    },
+  };
+}
+
+export const SIMON = {
+  seconds: 60,
+  parts: ['head', 'tummy', 'feet'],
+  startLength: 2, // how many moves the first round has
+  showTime: 0.85, // seconds given to each move when the pet shows them
+  pause: 0.7, // a breath before the pet starts showing
+  rightTime: 1.0, // celebrating a finished round
+  wrongTime: 1.3, // shaking its head before showing again
+};
+
+// The pet touches its head, tummy and feet in some order; copy it. Each
+// finished round earns a star and the next round is one move longer.
+export function createSimon(random = Math.random) {
+  const part = () => SIMON.parts[Math.min(SIMON.parts.length - 1, Math.floor(random() * SIMON.parts.length))];
+  const g = {
+    kind: 'simon', seconds: SIMON.seconds, time: 0, left: SIMON.seconds, score: 0,
+    sequence: Array.from({ length: SIMON.startLength }, part),
+    phase: 'ready', t: 0, index: 0, showing: null, shown: -1, over: false,
+  };
+  const enter = (phase) => Object.assign(g, { phase, t: 0, index: 0, showing: null, shown: -1 });
+
+  return {
+    state: g,
+    // Move time on by dt seconds. Returns what happened: 'show' (see state.showing), 'go', 'end'.
+    update(dt) {
+      const events = [];
+      if (g.over) return events;
+      g.time += dt;
+      g.left = Math.max(0, SIMON.seconds - g.time);
+      if (g.left === 0) {
+        g.over = true;
+        g.showing = null;
+        events.push('end');
+        return events;
+      }
+      g.t += dt;
+
+      if (g.phase === 'ready' && g.t >= SIMON.pause) enter('show');
+      else if (g.phase === 'show') {
+        const move = Math.floor(g.t / SIMON.showTime);
+        if (move >= g.sequence.length) {
+          enter('copy');
+          events.push('go');
+        } else {
+          // Each move is held for most of its time, then dropped, so that two
+          // of the same in a row read as two.
+          const held = g.t % SIMON.showTime < SIMON.showTime * 0.75;
+          g.showing = held ? g.sequence[move] : null;
+          if (held && g.shown !== move) {
+            g.shown = move;
+            events.push('show');
+          }
+        }
+      } else if (g.phase === 'right' && g.t >= SIMON.rightTime) {
+        g.sequence.push(part());
+        enter('ready');
+      } else if (g.phase === 'wrong' && g.t >= SIMON.wrongTime) enter('ready');
+      return events;
+    },
+    // The player touched this part. Returns 'right', 'round' when that finished
+    // the sequence, 'wrong', or null if it isn't the player's turn.
+    tap(touched) {
+      if (g.over || g.phase !== 'copy') return null;
+      if (touched !== g.sequence[g.index]) {
+        enter('wrong');
+        return 'wrong';
+      }
+      g.index += 1;
+      if (g.index < g.sequence.length) return 'right';
+      g.score += 1;
+      enter('right');
+      return 'round';
+    },
+  };
+}
+
 // Compare a finished game's score with the best so far.
 export function newRecord(score, best) {
   return score > 0 && score > (best ?? 0);

@@ -264,7 +264,7 @@ button {
   gap: 8px;
 }
 
-.games { grid-template-columns: repeat(6, 1fr); }
+.games { grid-template-columns: repeat(4, 1fr); }
 .actions { grid-template-columns: repeat(9, 1fr); gap: 5px; }
 .actions button { border-radius: 12px; border-width: 2px; box-shadow: 0 3px 0 var(--ink); }
 .actions .emoji { font-size: 1.25rem; }

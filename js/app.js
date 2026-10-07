@@ -1,7 +1,7 @@
 import { PETS, findPet } from './pets.js';
 import { nextState, micOpen } from './state.js';
-import { ACTIONS, REACTIONS, GAMES, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine, scoreLine } from './actions.js';
-import { POP, PENALTY, SCALE, createBoxing, createSwing, createCatch, createPop, createPenalty, createPiano, newRecord } from './games.js';
+import { ACTIONS, REACTIONS, GAMES, GAME_LINES, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine, scoreLine } from './actions.js';
+import { POP, PENALTY, SCALE, createBoxing, createSwing, createCatch, createPop, createPenalty, createPiano, createHide, createSimon, newRecord } from './games.js';
 import { createSounds } from './sounds.js';
 import { createVoice, playSamples } from './voice.js';
 import { createPetView, renderThumbnails } from './pet3d.js';
@@ -54,7 +54,13 @@ const stage = $('stage');
 const holder = $('pet-holder');
 const micNotice = $('mic-notice');
 const actionButtons = [...document.querySelectorAll('.controls button')];
-const NEW_GAME = { boxing: createBoxing, swing: createSwing, catch: createCatch, pop: createPop, penalty: createPenalty, piano: createPiano };
+const NEW_GAME = {
+  boxing: createBoxing, swing: createSwing, catch: createCatch, pop: createPop,
+  penalty: createPenalty, piano: createPiano, hide: createHide, simon: createSimon,
+};
+// In Simon says: the part of the pet you tap, the move it stands for, and its note.
+const SIMON_MOVE = { head: 'head', belly: 'tummy', feet: 'feet' };
+const SIMON_NOTE = { head: SCALE[7], tummy: SCALE[4], feet: SCALE[0] };
 const pianoKeys = [...document.querySelectorAll('.piano button')];
 
 let pet = null;
@@ -307,6 +313,12 @@ function tick(dt) {
       sounds?.cheer();
       say('Goal!', pet);
     } else if (event === 'save') sounds?.boing();
+    else if (event === 'hidden') say(pickLine(GAME_LINES.hidden), pet);
+    else if (event === 'peek') sounds?.call(pet, 'giggle');
+    else if (event === 'show') {
+      sounds?.note(SIMON_NOTE[game.state.showing], pet);
+      say(GAME_LINES.parts[game.state.showing], pet);
+    } else if (event === 'go') sounds?.blip();
     else if (event === 'end') {
       endGame();
       return;
@@ -329,6 +341,28 @@ function gameTap(zone, clientX, clientY) {
   } else if (kind === 'penalty') {
     const target = view.aim(clientX, clientY, PENALTY.goalZ);
     if (game.shoot(target.x, target.y)) sounds?.kick();
+  } else if (kind === 'hide') {
+    if (!zone?.startsWith('spot')) return;
+    const result = game.guess(Number(zone.slice(4)));
+    if (result === 'found') {
+      sounds?.ding();
+      say(pickLine(GAME_LINES.found), pet);
+    } else if (result === 'wrong') sounds?.miss();
+  } else if (kind === 'simon') {
+    const part = SIMON_MOVE[zone];
+    const result = part && game.tap(part);
+    if (!result) return;
+    if (result === 'wrong') {
+      sounds?.miss();
+      say(pickLine(GAME_LINES.wrong), pet);
+      return;
+    }
+    sounds?.note(SIMON_NOTE[part], pet);
+    fx = { kind: 'touch', part, t: 0 };
+    if (result === 'round') {
+      sounds?.ding();
+      say(pickLine(GAME_LINES.round), pet);
+    }
   } else if (kind === 'piano') {
     // The piano is played on its own keys, not on the pet.
   } else if (kind === 'pop') {

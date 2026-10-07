@@ -7,7 +7,7 @@ The goal: a pet app kids come back to, shipped first as an installable web app (
 - Eight pets: cat, dog, bunny, panda, fox, monkey, penguin, unicorn.
 - Talk-back: the pet repeats what you say in its own voice.
 - Pokes: head, belly, tail, feet, and a dizzy spell after three head pokes.
-- Six games with scores: boxing, the swing, catch the food, bubble pop, football penalties and piano.
+- Eight games with scores: boxing, the swing, catch the food, bubble pop, football penalties, piano, hide and seek, and Simon says.
 - Nine buttons: feed, milk, ball, pie, trampoline, dance, toot, dress up, sleep.
 - The pet speaks its reactions aloud; there are no captions to read.
 - Installable, works offline.
@@ -20,8 +20,7 @@ These turn "press a button and watch" into things kids actually play.
 2. **Difficulty by age.** An easy mode with slower pads and a gentler swing for the youngest.
 3. **Catch the food and bubble pop are built.** Still to add: surprises inside some bubbles.
 5. **Football penalties and piano are built.** Still to add: swiping to shoot, drums, and more tunes.
-7. **Hide and seek.** The pet hides behind furniture; tap where it is.
-8. **Simon says.** The pet does a move and the child copies it by tapping the right body part.
+7. **Hide and seek and Simon says are built.** Still to add: more hiding places as it gets harder, and more moves (wave, spin, clap).
 
 ## Then: reasons to come back tomorrow
 

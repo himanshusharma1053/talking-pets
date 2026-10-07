@@ -3,7 +3,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { RoomEnvironment } from '../vendor/RoomEnvironment.js';
 import { ACTIONS, CUES } from './actions.js';
-import { FOODS, YUCKS, POP, PENALTY } from './games.js';
+import { FOODS, YUCKS, POP, PENALTY, HIDE } from './games.js';
 
 const CLOSED = 0.08; // eye height when shut
 const TWO_PI = Math.PI * 2;
@@ -61,7 +61,10 @@ const SWING_LENGTH = 6;
 const PAD_SLOTS = [[-1.2, 3.6], [1.2, 3.6], [-1.3, 2.4], [1.3, 2.4], [-1.15, 1.1], [1.15, 1.1]];
 
 // How far the camera pulls back for each game (0 = the normal view).
-const GAME_ZOOM = { swing: 1, catch: 0.6, pop: 0.35, penalty: 0.55 };
+const GAME_ZOOM = { swing: 1, catch: 0.6, pop: 0.35, penalty: 0.55, hide: 0.6 };
+
+// Where each part the pet points to in Simon says is: [x, y].
+const PART_AT = { head: [0, 3.2], tummy: [0, 1.25], feet: [0, 0.35] };
 
 const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
 
@@ -427,6 +430,25 @@ function buildPet(pet) {
   net.setAttribute('position', new THREE.Float32BufferAttribute(strands, 3));
   P.goal.add(new THREE.LineSegments(net, new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.6 })));
 
+  // Three things to hide behind: a crate, a bush and a present.
+  P.spots = HIDE.spotX.map((x, i) => group(props, [x, 0, 0], `spot${i}`));
+  for (const spot of P.spots) spot.scale.x = 0.75; // slim enough to leave gaps between them
+  const [crate, bush, present] = P.spots;
+  const box = (parent, material, size, pos) => add(parent, new THREE.Mesh(new THREE.BoxGeometry(...size), material), pos);
+  box(crate, wood, [1.8, 2.5, 1], [0, 1.25, 0]);
+  for (const y of [0.45, 1.25, 2.05]) box(crate, matte('#8a5a2b'), [1.86, 0.14, 1.06], [0, y, 0]);
+  const leaves = [matte('#4caf50'), matte('#3d9142')];
+  [[0, 0.95, 0, 1], [-0.5, 1.6, 0.1, 0.78], [0.5, 1.65, 0.1, 0.78], [0, 2.05, 0, 0.72], [-0.6, 0.6, 0.2, 0.6], [0.6, 0.6, 0.2, 0.6]].forEach(([bx, by, bz, size], n) => {
+    blob(bush, leaves[n % 2], size, [bx, by, bz]);
+  });
+  for (const [bx, by] of [[-0.4, 1.9], [0.5, 1.2], [-0.1, 0.9]]) blob(bush, matte('#ff8ad4'), 0.12, [bx, by, 0.85]);
+  const ribbon = matte('#ffd23f');
+  box(present, matte('#ff7ac3'), [1.8, 2.3, 1], [0, 1.15, 0]);
+  box(present, ribbon, [0.32, 2.34, 1.04], [0, 1.15, 0]);
+  box(present, ribbon, [1.84, 0.32, 1.04], [0, 1.25, 0]);
+  for (const side of [-1, 1]) blob(present, ribbon, 0.28, [side * 0.26, 2.5, 0], [1.2, 0.7, 0.6], [0, 0, side * 0.4]);
+  P.puffs = P.spots.map(() => textSprite('💨'));
+
   P.football = new THREE.Group();
   props.add(P.football);
   blob(P.football, glossy('#ffffff'), 1, [0, 0, 0]);
@@ -463,7 +485,7 @@ function buildPet(pet) {
   });
   P.yuck = textSprite('🤢');
 
-  props.add(P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles, ...P.falling, P.yuck, P.pow, P.sparkle, P.star, P.bell, ...P.confetti);
+  props.add(...P.puffs, P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles, ...P.falling, P.yuck, P.pow, P.sparkle, P.star, P.bell, ...P.confetti);
 
   for (const ear of ears) ear.userData.rest = ear.rotation.z;
   for (const cheek of cheeks) cheek.userData.rest = cheek.scale.clone();
@@ -517,6 +539,7 @@ function pose(m, v, dt, snap) {
   };
 
   for (const item of m.hideable) item.visible = false;
+  m.root.visible = true;
   const show = (item, x, y, z, scale, opacity = 1) => {
     item.visible = true;
     item.position.set(x, y, z);
@@ -905,6 +928,81 @@ function pose(m, v, dt, snap) {
       break;
     }
 
+    case 'hide-game': {
+      const g = v.game;
+      if (!g) break;
+      const x = HIDE.spotX[g.spot];
+      P.spots.forEach((spot, i) => {
+        spot.visible = true;
+        spot.rotation.z = g.wrong?.spot === i ? Math.sin(g.wrong.t * 40) * 0.08 : 0; // "not here" wobble
+      });
+      if (g.phase === 'found') {
+        // Jumps out in front, delighted.
+        T.x = x;
+        T.z = 1.4;
+        T.size = 0.8;
+        T.y = arc(g.t / 0.6) * 0.8;
+        T.armL = -2.6;
+        T.armR = 2.6;
+        T.mouth = 0.9;
+        if (g.t > 0.3) T.eyes = CLOSED;
+        show(P.star, x, 3.6 + g.t, 1.8, 1, 1 - g.t / HIDE.foundTime);
+        break;
+      }
+      // Small enough to fit behind its hiding place.
+      T.z = -1.3;
+      T.size = 0.45;
+      T.x = x;
+      if (g.phase === 'hiding') {
+        // Nobody sees where it goes: puffs of dust over every hiding place.
+        m.root.visible = false;
+        P.puffs.forEach((puff, i) => show(puff, HIDE.spotX[i], 2.9, 0.6, 1 + g.t, 1 - g.t / HIDE.hideTime));
+      } else {
+        // Pops up for a peek over the top.
+        T.y = g.peek * 1.5;
+        T.eyeSize = 1.15;
+        T.mouth = g.peek > 0.5 ? 0.5 : 0;
+      }
+      break;
+    }
+
+    case 'simon-game': {
+      const g = v.game;
+      if (!g) break;
+      const touched = g.fx?.kind === 'touch' && g.fx.t < 0.35 ? g.fx.part : null;
+      const part = g.showing ?? touched;
+      if (part === 'head') {
+        T.armL = -2.9; // paws on its head
+        T.armR = 2.9;
+      } else if (part === 'tummy') {
+        T.armL = 0.25; // paws on its tummy
+        T.armR = -0.25;
+        T.armLx = -0.7;
+        T.armRx = -0.7;
+        T.squash = -0.03;
+      } else if (part === 'feet') {
+        T.headRx = 0.45; // bends down to its toes
+        T.squash = 0.12;
+        T.armLx = -0.5;
+        T.armRx = -0.5;
+      }
+      if (part) {
+        const [x, y] = PART_AT[part];
+        show(g.showing ? P.star : P.sparkle, x, y, 1.5, 0.9 * (1 + Math.sin(time * 14) * 0.12));
+      }
+      if (g.phase === 'copy' && !part) T.headRz = Math.sin(time * 2) * 0.05; // waiting, head tilting
+      if (g.phase === 'wrong') {
+        T.headRy = Math.sin(g.t * 14) * 0.35; // shakes its head
+        T.mouth = 0.2;
+      }
+      if (g.phase === 'right') {
+        T.y = arc(g.t / 0.5) * 0.4;
+        T.eyes = CLOSED;
+        T.mouth = 0.9;
+      }
+      break;
+    }
+
     case 'piano-game': {
       const fx = v.game?.fx;
       // Swaying along, arms out like a conductor.
@@ -1227,7 +1325,8 @@ export function createPetView(container, pet) {
       for (const [name, item] of Object.entries(model.accessories)) item.visible = name === id;
       step(0);
     },
-    // What is under this screen point: 'head', 'belly', 'tail', 'feet', a boxing pad ('pad0'…), a bubble ('bubble0'…) or null.
+    // What is under this screen point: 'head', 'belly', 'tail', 'feet', a boxing pad ('pad0'…),
+    // a bubble ('bubble0'…), a hiding place ('spot0'…) or null.
     pick(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
       const point = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);

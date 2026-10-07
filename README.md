@@ -8,13 +8,15 @@ What comes next is in [ROADMAP.md](ROADMAP.md).
 
 - **Talks back:** say something and it repeats it in its own voice.
 - **Reacts to pokes:** head, belly, tail and feet each do something different. Poke the head three times quickly and it gets dizzy.
-- **Games:** six short games, each with a star score and a best score kept on the device.
+- **Games:** eight short games, each with a star score and a best score kept on the device.
   - Boxing: tap the pads as they pop up and the pet punches them.
   - Swing: tap to push, and swing high enough to ring the bell.
   - Catch: drag the pet left and right to catch falling food, and dodge the socks.
   - Bubbles: the pet blows bubbles; tap to pop them. Golden ones are worth three.
   - Football: take penalties against the pet in goal. Tap where you want to shoot.
   - Piano: eight coloured keys. The next key of a well-known tune lights up; press it for a star.
+  - Hide and seek: the pet hides behind a crate, a bush or a present and peeks out now and then. Tap where it is.
+  - Copy me (Simon says): the pet touches its head, tummy and feet in some order. Tap them back in the same order; each round is one move longer.
 - **Buttons:** feed, milk (with a burp), ball, pie in the face, trampoline, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
 - **Speaks:** it says its reactions aloud using the device's speech voice, so there is nothing to read. Voices are kept gentle and a little slow so young children can follow them.
 - **Watches you:** its head and eyes follow your finger or mouse.

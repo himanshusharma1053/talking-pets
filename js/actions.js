@@ -41,6 +41,17 @@ export const GAMES = {
   pop: { say: ['Pop the bubbles!', 'Bubbles! Pop them all!'] },
   penalty: { say: ['Try to score past me!', 'I am the goalkeeper! Shoot!'] },
   piano: { say: ['Play the shiny key!', "Let's make music!"] },
+  hide: { say: ['Hide and seek! Find me!', 'I am going to hide!'] },
+  simon: { say: ['Watch me, then copy!', 'Copy what I do!'] },
+};
+
+// Short things the pet says inside the games.
+export const GAME_LINES = {
+  hidden: ['Where am I?', 'Find me!', 'Yoo hoo!'],
+  found: ['You found me!', 'Here I am!', 'Peekaboo!'],
+  round: ['Well done!', 'Clever you!', 'Yes!'],
+  wrong: ['Oops! Watch again.', 'Not quite. Watch me!'],
+  parts: { head: 'Head!', tummy: 'Tummy!', feet: 'Feet!' },
 };
 
 // What the pet says when a game ends.
