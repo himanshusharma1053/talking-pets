@@ -92,3 +92,22 @@ test('slow head pokes never make the pet dizzy', () => {
     assert.equal(zone, 'head');
   }
 });
+
+test('every scene belongs to a real game and has a name the page knows', async () => {
+  const { SCENES } = await import('../js/actions.js');
+  const { readFileSync } = await import('node:fs');
+  const page = readFileSync('index.html', 'utf8');
+  const styles = readFileSync('styles.css', 'utf8');
+  for (const [game, scene] of Object.entries(SCENES)) {
+    assert.ok(game in GAMES, game);
+    assert.ok(page.includes(`scene-${scene}"`), `${scene} in page`);
+    assert.ok(styles.includes(`[data-scene="${scene}"] .scene-${scene}`), `${scene} in styles`);
+  }
+});
+
+test('the results ribbon fits the score', async () => {
+  const { ribbonText } = await import('../js/actions.js');
+  assert.equal(ribbonText(0, false), 'Have another go!');
+  assert.equal(ribbonText(5, false), 'Well played!');
+  assert.equal(ribbonText(5, true), 'New best score!');
+});

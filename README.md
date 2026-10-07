@@ -20,6 +20,7 @@ What comes next is in [ROADMAP.md](ROADMAP.md).
   - Paint: pick a colour and tap any part of the pet to paint it. There is no clock or score, and the pet keeps its colours until you wash them off.
   - Copy me (Simon says): the pet touches its head, tummy and feet in some order. Tap them back in the same order; each round is one move longer.
 - **Buttons:** feed, milk (with a burp), ball, pie in the face, trampoline, dance, toot, dress up (party hat, crown, sunglasses, bow tie) and sleep.
+- **Looks the part:** each game has its own scenery (park, football pitch, gym, stage), starts with a 3-2-1-Go countdown and ends with a results card and confetti.
 - **Speaks:** it says its reactions aloud using the device's speech voice, so there is nothing to read. Voices are kept gentle and a little slow so young children can follow them.
 - **Watches you:** its head and eyes follow your finger or mouse.
 

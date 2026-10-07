@@ -1,6 +1,9 @@
 import { PETS, findPet } from './pets.js';
 import { nextState, micOpen } from './state.js';
-import { ACTIONS, REACTIONS, GAMES, GAME_LINES, GREETINGS, ACCESSORIES, CUES, headPoke, pickLine, scoreLine } from './actions.js';
+import {
+  ACTIONS, REACTIONS, GAMES, GAME_LINES, GREETINGS, ACCESSORIES, CUES, SCENES,
+  headPoke, pickLine, scoreLine, ribbonText,
+} from './actions.js';
 import {
   POP, PENALTY, SCALE, PALETTE, createBoxing, createSwing, createCatch, createPop, createPenalty,
   createPiano, createHide, createSimon, createMatch, createPaint, newRecord,
@@ -81,6 +84,11 @@ let timer = null;
 let micTimer = null;
 let game = null; // the mini-game being played, if any
 let fx = null; // a short flourish inside a game: { kind, t, slot }
+let countdown = 0; // seconds of "3, 2, 1, Go!" left before the game starts
+let shownScore = 0; // the score the top bar last showed, to spot when it goes up
+
+const COUNT_STEP = 0.45; // seconds each of 3, 2, 1, Go! is on screen
+const COUNT_WORDS = ['Go!', '1', '2', '3'];
 
 // ---------- Pet picker ----------
 
@@ -235,6 +243,8 @@ function quiet() {
   hush();
   game = null;
   fx = null;
+  countdown = 0;
+  $('banner').hidden = true;
   view?.setGame(null);
   for (const key of pianoKeys) key.classList.remove('next');
 }
@@ -244,6 +254,10 @@ function quiet() {
 // or waking. `line` replaces what the pet would normally say.
 function enter(to, payload, line) {
   quiet();
+  // The results card stays up through the cheer and the quiet moment after it,
+  // and goes as soon as anything else is started.
+  const cheering = to === 'reacting' && payload === 'cheer';
+  if (!cheering && !['idle', 'listening', 'talking'].includes(to)) hideResults();
   state = to;
   detail = ['reacting', 'acting', 'playing'].includes(to) ? payload : null;
   view.setMouth(0);
@@ -268,7 +282,9 @@ function enter(to, payload, line) {
       view.setGame(game.state);
       lines = GAMES[detail].say;
       boardShown = '';
+      shownScore = 0;
       showColor();
+      if (detail !== 'paint') startCountdown(); // painting has nothing to race
       break;
     case 'sleeping':
       lines = payload;
@@ -288,6 +304,7 @@ function render() {
   const asleep = state === 'sleeping';
   stage.dataset.state = state;
   stage.dataset.detail = detail ?? '';
+  stage.dataset.scene = asleep ? 'night' : (state === 'playing' && SCENES[detail]) || 'room';
   $('mic-dot').hidden = state !== 'listening';
   $('hud').hidden = state !== 'playing';
   renderHud();
@@ -301,6 +318,14 @@ function render() {
 // Called before every frame while a pet is on screen.
 function tick(dt) {
   if (!game) return;
+  if (countdown > 0) {
+    // The game waits while 3, 2, 1, Go! counts down.
+    const before = Math.ceil(countdown / COUNT_STEP);
+    countdown -= dt;
+    const now = Math.max(0, Math.ceil(countdown / COUNT_STEP));
+    if (now !== before) showCount(now);
+    return;
+  }
   if (fx && (fx.t += dt) > 0.6) fx = null;
   for (const event of game.update(dt)) {
     if (event === 'spawn') sounds?.blip();
@@ -400,9 +425,34 @@ function gameTap(zone, clientX, clientY) {
   }
 }
 
+function startCountdown() {
+  countdown = COUNT_STEP * COUNT_WORDS.length;
+  showCount(COUNT_WORDS.length);
+}
+
+// Show the word for this many steps left: 4 is "3", 1 is "Go!", 0 clears it.
+function showCount(left) {
+  const banner = $('banner');
+  banner.hidden = left === 0;
+  if (left === 0) return;
+  banner.innerHTML = `<span>${COUNT_WORDS[left - 1]}</span>`; // a fresh element, so it animates each time
+  if (left === 1) sounds?.ding();
+  else sounds?.blip();
+}
+
 function renderHud() {
   if (!game) return;
-  $('hud-score').textContent = game.state.score;
+  const { score, left, seconds } = game.state;
+  if (score > shownScore) {
+    // The score pill jumps whenever a star is won.
+    const pill = $('hud-score').parentElement;
+    pill.classList.remove('bump');
+    pill.getBoundingClientRect();
+    pill.classList.add('bump');
+  }
+  shownScore = score;
+  $('hud-time').parentElement.classList.toggle('low', seconds > 1 && left < 5);
+  $('hud-score').textContent = score;
   if (game.state.kind === 'match') renderBoard();
   pianoKeys.forEach((key, i) => key.classList.toggle('next', game.state.kind === 'piano' && i === game.state.next));
   $('hud-time').style.transform = `scaleX(${game.state.left / game.state.seconds})`;
@@ -429,7 +479,59 @@ function endGame() {
       // Private browsing: the record just isn't remembered.
     }
   }
+  showResults(kind, score, record);
   dispatch('gameOver', 'cheer', scoreLine(score, record));
+}
+
+// ----- The card at the end of a game -----
+
+let resultsFor = null;
+let counting = null;
+
+function showResults(kind, score, record) {
+  resultsFor = kind;
+  $('results-ribbon').textContent = ribbonText(score, record);
+  $('results-best').textContent = `Best: ${bestScore(kind)}`;
+  $('results').hidden = false;
+  // The stars count up from nothing.
+  clearInterval(counting);
+  let shown = 0;
+  $('results-score').textContent = 0;
+  counting = setInterval(() => {
+    shown = Math.min(score, shown + Math.max(1, Math.ceil(score / 12)));
+    $('results-score').textContent = shown;
+    if (shown >= score) clearInterval(counting);
+  }, 60);
+  if (score > 0) throwConfetti();
+}
+
+function hideResults() {
+  clearInterval(counting);
+  $('results').hidden = true;
+}
+
+$('results-again').addEventListener('click', () => {
+  hideResults();
+  if (resultsFor) dispatch('play', resultsFor);
+});
+$('results-done').addEventListener('click', hideResults);
+
+const CONFETTI_COLORS = ['#ff5d5d', '#ffd93d', '#6bcb77', '#4d96ff', '#9b72f2', '#ff7ac3'];
+
+function throwConfetti() {
+  const box = $('confetti');
+  box.innerHTML = Array.from({ length: 40 }, (_, i) => {
+    const style = [
+      `--x:${Math.random() * 100}%`,
+      `--color:${CONFETTI_COLORS[i % CONFETTI_COLORS.length]}`,
+      `--time:${1.6 + Math.random() * 1.4}s`,
+      `--wait:${Math.random() * 0.5}s`,
+      `--drift:${Math.random() * 120 - 60}px`,
+      `--spin:${Math.random() * 1440 - 720}deg`,
+    ].join(';');
+    return `<i style="${style}"></i>`;
+  }).join('');
+  setTimeout(() => (box.innerHTML = ''), 3800);
 }
 
 $('hud-quit').addEventListener('click', () => dispatch('quit'));
@@ -532,6 +634,9 @@ holder.addEventListener('pointerdown', (e) => {
     gameTap(zone, e.clientX, e.clientY);
     return;
   }
+  // Fingers are still flying when a game ends: stray taps on the pet don't
+  // sweep the results away. Its own buttons, or any other button, close it.
+  if (!$('results').hidden) return;
   if (!zone) return;
   if (state === 'reacting' && detail === 'dizzy') return; // too dizzy to notice
   if (zone === 'head' && state !== 'sleeping') {
@@ -577,6 +682,9 @@ document.addEventListener('visibilitychange', () => {
 for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
   document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
 }
+
+// Everything is in place: lift the loading screen.
+document.body.classList.add('ready');
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

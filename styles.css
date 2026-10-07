@@ -1,11 +1,12 @@
 :root {
-  --ink: #3b2b28;
-  --paper: #fff8ec;
-  --wall: #bfe6e0;
-  --wall-light: #e6f6f1;
-  --floor: #f2c489;
-  --floor-dark: #dba466;
+  --ink: #2f2440;
+  --paper: #fff6e9;
   --accent: #ff7a59;
+  --gold: #ffc93c;
+  --gold-edge: #d9961c;
+  --edge: #cfc4e6; /* the underside of a raised button */
+  --lift: 0 10px 18px rgb(47 36 64 / 0.16); /* the soft shadow under anything raised */
+  --ease: cubic-bezier(0.2, 0.9, 0.3, 1.2); /* a little overshoot, for things that pop in */
   font-family: ui-rounded, "Segoe UI Rounded", "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif;
   color: var(--ink);
 }
@@ -34,9 +35,32 @@ button {
   font: inherit;
   color: inherit;
   cursor: pointer;
+  border: 0;
 }
 
 [hidden] { display: none !important; }
+
+/* ---------- Loading screen ---------- */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  background: radial-gradient(circle at 50% 35%, #fff3d6, #ffd9a0);
+  transition: opacity 0.5s, visibility 0.5s;
+}
+
+.splash-paw { font-size: 5rem; animation: bounce 0.7s ease-in-out infinite alternate; }
+.splash h1 { margin: 0; font-size: 2.4rem; letter-spacing: -0.02em; }
+body.ready .splash { opacity: 0; visibility: hidden; }
+
+@keyframes bounce { to { transform: translateY(-18px) rotate(8deg); } }
+
+/* ---------- Screens ---------- */
 
 .screen {
   height: 100vh;
@@ -46,9 +70,18 @@ button {
   display: flex;
   flex-direction: column;
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  animation: screen-in 0.35s ease-out; /* plays each time a screen is shown */
 }
 
+@keyframes screen-in { from { opacity: 0; transform: scale(0.97); } }
+
 /* ---------- Pet picker ---------- */
+
+body:has(.picker:not([hidden])) {
+  background:
+    radial-gradient(circle, rgb(255 255 255 / 0.55) 2px, transparent 3px) 0 0 / 26px 26px,
+    linear-gradient(#ffe9c4, #ffd3a8);
+}
 
 .picker {
   overflow-y: auto;
@@ -56,62 +89,77 @@ button {
 }
 
 .picker h1 {
-  margin: 12px 0 16px;
-  font-size: clamp(2rem, 9vw, 2.8rem);
+  margin: 10px 0 18px;
+  font-size: clamp(2.1rem, 9vw, 3rem);
   letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 3px 0 var(--accent), 0 6px 0 #d9502f, 0 10px 14px rgb(47 36 64 / 0.25);
 }
-
 
 .pet-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  padding-bottom: 12px;
+  padding: 0 4px 16px;
 }
 
 .pet-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 14px 10px 16px;
-  border: 3px solid var(--ink);
-  border-radius: 22px;
-  background: var(--card, #fff);
-  box-shadow: 0 5px 0 var(--ink);
-  transition: transform 0.1s, box-shadow 0.1s;
+  padding: 12px 10px 14px;
+  border-radius: 26px;
+  background: linear-gradient(#fff, var(--card, #fff) 70%);
+  box-shadow: 0 6px 0 rgb(47 36 64 / 0.18), var(--lift);
+  transition: transform 0.12s, box-shadow 0.12s;
+  animation: pop-in 0.45s var(--ease) backwards;
 }
 
+/* The cards arrive one after another. */
+.pet-card:nth-child(2) { animation-delay: 0.05s; }
+.pet-card:nth-child(3) { animation-delay: 0.1s; }
+.pet-card:nth-child(4) { animation-delay: 0.15s; }
+.pet-card:nth-child(5) { animation-delay: 0.2s; }
+.pet-card:nth-child(6) { animation-delay: 0.25s; }
+.pet-card:nth-child(7) { animation-delay: 0.3s; }
+.pet-card:nth-child(8) { animation-delay: 0.35s; }
+
+@keyframes pop-in { from { opacity: 0; transform: translateY(24px) scale(0.9); } }
+
 .pet-card:active {
-  transform: translateY(4px);
-  box-shadow: 0 1px 0 var(--ink);
+  transform: translateY(5px) scale(0.98);
+  box-shadow: 0 1px 0 rgb(47 36 64 / 0.18), 0 3px 6px rgb(47 36 64 / 0.16);
 }
 
 .pet-card img { width: auto; max-width: 100%; height: 140px; object-fit: contain; pointer-events: none; }
-.pet-card strong { font-size: 1.25rem; margin-top: 6px; }
+.pet-card strong { font-size: 1.25rem; margin-top: 4px; }
 
 /* ---------- Stage ---------- */
 
 .stage {
   position: relative;
   max-width: none;
-  background: linear-gradient(to bottom, var(--floor) 40%, var(--floor-dark));
   overflow: hidden;
-  transition: filter 0.6s;
 }
 
-.stage[data-state="sleeping"] { filter: brightness(0.6) saturate(0.8) hue-rotate(-12deg); }
-
-.top { position: relative; z-index: 1; }
-
 .top {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.top h2 { margin: 0; font-size: 1.4rem; }
-.chip-spacer { width: 78px; text-align: right; }
+.top h2 {
+  margin: 0;
+  padding: 4px 16px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.75);
+  font-size: 1.3rem;
+}
+
+.chip-spacer { width: 64px; text-align: right; }
 
 /* Shown while the pet is listening. */
 .mic-dot {
@@ -123,43 +171,300 @@ button {
 @keyframes pulse { to { transform: scale(1.35); } }
 
 .chip {
-  min-width: 78px;
+  min-width: 64px;
   padding: 8px 14px;
-  border: 3px solid var(--ink);
   border-radius: 999px;
   background: #fff;
+  box-shadow: 0 4px 0 var(--edge), var(--lift);
   font-weight: 700;
+  transition: transform 0.1s, box-shadow 0.1s;
 }
 
-/* Score and time left, shown during a game. */
+.chip:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--edge); }
+
+/* ---------- The arena: scenery, the pet, and things that pop up over it ---------- */
+
+.arena {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+}
+
+.pet-holder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.pet-holder canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.pet-emoji { font-size: 5rem; line-height: 1.4; }
+.pet-emoji.big { font-size: min(50vw, 14rem); margin: auto; cursor: pointer; }
+
+/* Each scene is a sky (or wall) above a ground, meeting a little above the
+   pet's feet so it stands on the ground. Scenes cross-fade into one another. */
+.scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s;
+  pointer-events: none;
+}
+
+.sky, .ground { position: absolute; left: -16px; right: -16px; }
+.sky { top: -50vh; bottom: 24%; }
+.ground { top: 76%; bottom: -50vh; }
+.sky::before, .sky::after, .ground::before { content: ""; position: absolute; }
+
+.stage[data-scene="room"] .scene-room,
+.stage[data-scene="park"] .scene-park,
+.stage[data-scene="pitch"] .scene-pitch,
+.stage[data-scene="gym"] .scene-gym,
+.stage[data-scene="show"] .scene-show,
+.stage[data-scene="night"] .scene-night { opacity: 1; }
+
+/* Home: a sunny room with a window, a picture and a rug. */
+.scene-room .sky { background: radial-gradient(ellipse 70% 45% at 50% 100%, rgb(255 255 255 / 0.55), transparent), linear-gradient(#cfeee6, #a9ddd3); }
+.scene-room .sky::before {
+  left: 9%;
+  bottom: 150px;
+  width: min(24vw, 130px);
+  aspect-ratio: 3 / 4;
+  border: 7px solid #fff;
+  border-radius: 80px 80px 10px 10px;
+  background:
+    radial-gradient(ellipse 34% 14% at 40% 38%, #fff 99%, transparent),
+    radial-gradient(ellipse 26% 11% at 62% 46%, #fff 99%, transparent),
+    radial-gradient(circle at 76% 22%, #ffe066 0 12%, transparent 13%),
+    linear-gradient(#8fd3ff, #d8f3ff);
+  box-shadow: 0 8px 0 rgb(47 36 64 / 0.1);
+}
+.scene-room .sky::after {
+  right: 10%;
+  bottom: 190px;
+  width: min(20vw, 110px);
+  aspect-ratio: 5 / 4;
+  border: 6px solid #f2b76b;
+  border-radius: 10px;
+  background:
+    radial-gradient(ellipse 70% 60% at 30% 110%, #7ccf6a 99%, transparent),
+    radial-gradient(ellipse 80% 50% at 85% 110%, #68c05a 99%, transparent),
+    linear-gradient(#ffd6a8, #ffeccf);
+  box-shadow: 0 6px 0 rgb(47 36 64 / 0.1);
+}
+.scene-room .ground {
+  border-top: 12px solid #fff7ea;
+  background: repeating-linear-gradient(90deg, transparent 0 88px, rgb(0 0 0 / 0.05) 88px 90px), linear-gradient(#eec089, #d7a063);
+}
+.scene-room .ground::before {
+  left: 12%;
+  right: 12%;
+  top: 4%;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #ffb3c7 0 55%, #ff8fb0 56% 70%, #ffd0dc 71% 100%);
+  opacity: 0.85;
+}
+
+/* The park: sky, sun, clouds and rolling hills. */
+.scene-park .sky {
+  background:
+    radial-gradient(ellipse 70px 24px at 18% calc(100% - 230px), #fff 99%, transparent),
+    radial-gradient(ellipse 50px 20px at 26% calc(100% - 245px), #fff 99%, transparent),
+    radial-gradient(ellipse 80px 26px at 72% calc(100% - 300px), #fff 99%, transparent),
+    radial-gradient(circle 46px at 84% calc(100% - 380px), #fff3a8 0 60%, #ffe066 61% 99%, transparent),
+    linear-gradient(#6ec3ff, #d6f2ff 88%);
+}
+.scene-park .sky::after {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 110px;
+  background:
+    radial-gradient(ellipse 55% 100% at 22% 100%, #86d672 99%, transparent),
+    radial-gradient(ellipse 60% 78% at 82% 100%, #6fc660 99%, transparent);
+}
+.scene-park .ground { background: radial-gradient(ellipse 60% 30% at 50% 0, rgb(255 255 255 / 0.25), transparent), linear-gradient(#79cf68, #55b34c); }
+
+/* The football pitch: a stand full of people and mown grass. */
+.scene-pitch .sky { background: linear-gradient(#6ec3ff, #cfefff); }
+.scene-pitch .sky::after {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 96px;
+  border-top: 8px solid #fff;
+  background:
+    radial-gradient(circle, #ffd166 3px, transparent 4px) 0 0 / 18px 18px,
+    radial-gradient(circle, #fff 3px, transparent 4px) 9px 9px / 18px 18px,
+    linear-gradient(#5567b8, #40509a);
+}
+.scene-pitch .ground { border-top: 6px solid #fff; background: repeating-linear-gradient(90deg, #62bf5e 0 64px, #57b153 64px 128px); }
+
+/* The gym: warm spotlight on a coloured wall, a ring-rope edge to the floor. */
+.scene-gym .sky { background: radial-gradient(ellipse 60% 40% at 50% 100%, rgb(255 233 168 / 0.9), transparent), linear-gradient(#5a4bc4, #7d6ee0); }
+.scene-gym .sky::after {
+  left: 0;
+  right: 0;
+  bottom: 120px;
+  height: 26px;
+  background: conic-gradient(from 150deg at 50% 0, #ffd23f 0 60deg, transparent 0) 0 0 / 44px 26px, conic-gradient(from 150deg at 50% 0, #ff5d8f 0 60deg, transparent 0) 22px 0 / 44px 26px;
+  opacity: 0.9;
+}
+.scene-gym .ground { border-top: 10px solid #e63946; background: linear-gradient(#f6dca6, #e2ba72); }
+
+/* On stage: red curtains and a spotlight. */
+.scene-show .sky { background: radial-gradient(ellipse 55% 60% at 50% 100%, rgb(255 244 200 / 0.75), transparent 70%), repeating-linear-gradient(90deg, #b3162f 0 46px, #96102a 46px 92px); }
+.scene-show .ground { border-top: 8px solid #f2c14e; background: radial-gradient(ellipse 60% 40% at 50% 0, rgb(255 244 200 / 0.45), transparent), linear-gradient(#8a5630, #63391d); }
+
+/* Night: stars and a moon. */
+.scene-night .sky {
+  background:
+    radial-gradient(circle 34px at 78% calc(100% - 330px), #fff7cf 99%, transparent),
+    radial-gradient(circle, #fff 1.5px, transparent 2px) 0 0 / 90px 70px,
+    radial-gradient(circle, #fff 1px, transparent 1.5px) 40px 30px / 70px 110px,
+    linear-gradient(#141b45, #36407f);
+}
+.scene-night .ground { border-top: 12px solid #5b6096; background: linear-gradient(#565b8f, #383d68); }
+
+/* Text over the darker scenes stays readable. */
+.stage:is([data-scene="gym"], [data-scene="show"], [data-scene="night"]) .top h2 { background: rgb(255 255 255 / 0.9); }
+
+/* ---------- Things that pop up over the arena ---------- */
+
+/* 3, 2, 1, Go! */
+.banner {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  font-size: clamp(5rem, 30vw, 9rem);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 5px 0 var(--accent), 0 10px 0 #d9502f, 0 16px 20px rgb(47 36 64 / 0.35);
+}
+
+.banner span { animation: count 0.45s var(--ease); }
+
+@keyframes count { from { opacity: 0; transform: scale(2.2) rotate(-8deg); } }
+
+/* How you did, at the end of a game. */
+.results {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: start center;
+  padding-top: 4%;
+  pointer-events: none;
+}
+
+.results-card {
+  pointer-events: auto;
+  min-width: 230px;
+  padding: 14px 22px 16px;
+  border-radius: 28px;
+  background: linear-gradient(#fff, #fff4dc);
+  box-shadow: 0 7px 0 var(--gold-edge), 0 18px 30px rgb(47 36 64 / 0.3);
+  text-align: center;
+  animation: drop-in 0.5s var(--ease);
+}
+
+@keyframes drop-in { from { opacity: 0; transform: translateY(-60px) scale(0.8); } }
+
+.results-ribbon {
+  display: inline-block;
+  margin: -30px 0 4px;
+  padding: 5px 16px;
+  border-radius: 999px;
+  background: linear-gradient(#ff8f6b, var(--accent));
+  box-shadow: 0 4px 0 #d9502f;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.results-stars { margin: 4px 0 0; font-size: 3rem; font-weight: 900; line-height: 1.1; }
+.results-best { margin: 2px 0 12px; font-size: 0.95rem; font-weight: 700; opacity: 0.7; }
+.results-actions { display: flex; justify-content: center; gap: 14px; }
+
+.results-actions button {
+  width: 62px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(#fff, #f1ebfb);
+  box-shadow: 0 5px 0 var(--edge), var(--lift);
+  font-size: 1.7rem;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.results-actions button.again { background: linear-gradient(#ffe680, var(--gold)); box-shadow: 0 5px 0 var(--gold-edge), var(--lift); }
+.results-actions button:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--edge); }
+
+/* Confetti falls over the whole stage. */
+.confetti { position: absolute; inset: 0; z-index: 4; overflow: hidden; pointer-events: none; }
+
+.confetti i {
+  position: absolute;
+  top: -20px;
+  left: var(--x);
+  width: 10px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--color);
+  animation: fall var(--time) linear var(--wait) forwards;
+}
+
+@keyframes fall { to { transform: translate(var(--drift), 105vh) rotate(var(--spin)); } }
+
+/* ---------- Score and time left, shown during a game ---------- */
+
 .hud {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
   max-width: 520px;
   margin: 10px auto 0;
+  animation: slide-down 0.35s var(--ease);
 }
 
+@keyframes slide-down { from { opacity: 0; transform: translateY(-30px); } }
+
 .hud-score {
-  min-width: 78px;
-  padding: 6px 12px;
-  border: 3px solid var(--ink);
+  min-width: 82px;
+  padding: 6px 14px;
   border-radius: 999px;
-  background: #fff;
+  background: linear-gradient(#fff, #fff4dc);
+  box-shadow: 0 4px 0 var(--gold-edge), var(--lift);
   font-size: 1.3rem;
   font-weight: 800;
   text-align: center;
 }
 
+.hud-score.bump { animation: bump 0.3s var(--ease); }
+
+@keyframes bump { 40% { transform: scale(1.35) rotate(-4deg); } }
+
 .hud-time {
   flex: 1;
   height: 18px;
-  border: 3px solid var(--ink);
+  border: 3px solid #fff;
   border-radius: 999px;
-  background: #fff;
+  background: rgb(47 36 64 / 0.25);
+  box-shadow: var(--lift);
   overflow: hidden;
 }
 
@@ -167,33 +472,29 @@ button {
   display: block;
   height: 100%;
   width: 100%;
-  background: var(--accent);
+  border-radius: 999px;
+  background: linear-gradient(#8ee07a, #4fc04a);
   transform-origin: left;
 }
 
+/* The last few seconds. */
+.hud-time.low i { background: linear-gradient(#ff8f6b, #f0483e); animation: pulse-bar 0.4s ease-in-out infinite alternate; }
+
+@keyframes pulse-bar { to { filter: brightness(1.3); } }
+
 .hud .chip { min-width: 0; }
+
+/* Painting has no score and no clock. */
+.stage[data-detail="paint"] .hud-score,
+.stage[data-detail="paint"] .hud-time { visibility: hidden; }
 
 /* While a game is on, the buttons step aside to give it the whole screen. */
 .stage[data-state="playing"] .controls,
 .stage[data-state="playing"] .mic-notice { display: none; }
 
-.pet-holder {
-  position: relative;
-  flex: 1;
-  min-height: 200px;
-  display: flex;
-}
-
-/* The wall behind the pet. It ends a little above the pet's feet, so the pet stands on the floor. */
-.pet-holder::before {
-  content: "";
-  position: absolute;
-  inset: -50vh -16px 24%;
-  background: linear-gradient(to bottom, var(--wall-light), var(--wall));
-  border-bottom: 4px solid var(--ink);
-}
-
 .mic-notice {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -201,95 +502,95 @@ button {
   margin: 0 auto 10px;
   max-width: 420px;
   padding: 10px 14px;
-  border: 3px solid var(--ink);
-  border-radius: 16px;
-  background: #fff3c9;
+  border-radius: 18px;
+  background: #fff6d6;
+  box-shadow: var(--lift);
   font-size: 0.9rem;
   text-align: center;
 }
 
-/* Memory match: the cards, shown only while that game is on. */
-.board {
+/* ---------- Game boards that sit below the arena ---------- */
+
+.board, .palette, .piano {
+  position: relative;
+  z-index: 2;
   display: none;
-  grid-template-columns: repeat(var(--columns, 4), 1fr);
-  gap: 8px;
   width: 100%;
-  max-width: 460px;
   margin: 0 auto;
+  animation: slide-up 0.4s var(--ease);
 }
 
-.stage[data-state="playing"][data-detail="match"] .board { display: grid; }
+@keyframes slide-up { from { opacity: 0; transform: translateY(40px); } }
+
+.stage[data-state="playing"][data-detail="match"] .board,
+.stage[data-state="playing"][data-detail="paint"] .palette,
+.stage[data-state="playing"][data-detail="piano"] .piano { display: grid; }
+
+/* Memory match: the cards. */
+.board {
+  grid-template-columns: repeat(var(--columns, 4), 1fr);
+  gap: 8px;
+  max-width: 460px;
+}
 
 .card {
   aspect-ratio: 1;
   max-height: 14vh;
-  border: 3px solid var(--ink);
-  border-radius: 14px;
-  background: #ffb65c;
-  box-shadow: 0 4px 0 var(--ink);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffc46b, #ff9d4a);
+  box-shadow: 0 5px 0 #d97a26, var(--lift);
   font-size: clamp(1.4rem, 7vw, 2.4rem);
   touch-action: none;
+  transition: transform 0.1s;
 }
 
-.card.down { opacity: 0.95; filter: grayscale(0.2); }
-.card.up, .card.matched { background: #fff; animation: turn 0.2s ease-out; }
-.card.matched { background: #d6f5d6; box-shadow: none; transform: translateY(4px); }
+.card.down { color: rgb(255 255 255 / 0.85); }
+.card.down:active { transform: translateY(3px); }
+.card.up, .card.matched { background: linear-gradient(#fff, #f4f0fb); box-shadow: 0 5px 0 var(--edge), var(--lift); animation: turn 0.22s ease-out; }
+.card.matched { background: linear-gradient(#e4fbe0, #c4f0bd); box-shadow: 0 2px 0 #8fd487; transform: translateY(3px); }
 
-@keyframes turn { from { transform: scaleX(0.1); } }
+@keyframes turn { from { transform: scaleX(0.05); } }
 
-/* Painting: the colours, shown only while painting. */
+/* Painting: the colours. */
 .palette {
-  display: none;
   grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
-  width: 100%;
+  gap: 10px;
   max-width: 460px;
-  margin: 0 auto;
 }
-
-.stage[data-state="playing"][data-detail="paint"] .palette { display: grid; }
-/* Painting has no score and no clock. */
-.stage[data-detail="paint"] .hud-score,
-.stage[data-detail="paint"] .hud-time { visibility: hidden; }
 
 .swatch {
   aspect-ratio: 1;
-  max-height: 9vh;
-  border: 3px solid var(--ink);
-  border-radius: 50%;
-  background: var(--color, #fff);
-  box-shadow: 0 4px 0 var(--ink);
-  font-size: 1.5rem;
-  justify-self: center;
   width: 100%;
   max-width: 9vh;
+  max-height: 9vh;
+  justify-self: center;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgb(255 255 255 / 0.55), transparent 42%), var(--color, #fff);
+  box-shadow: 0 4px 0 rgb(47 36 64 / 0.22), var(--lift);
+  font-size: 1.5rem;
+  transition: transform 0.12s var(--ease);
 }
 
-.swatch.on { outline: 4px solid #fff; outline-offset: 2px; transform: scale(1.12); }
+.swatch.on { transform: scale(1.2); box-shadow: 0 0 0 4px var(--ink), var(--lift); }
 
-/* The piano keyboard, shown only while the piano game is on. */
+/* The piano keyboard. */
 .piano {
-  display: none;
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
-  width: 100%;
   max-width: 640px;
   height: clamp(110px, 22vh, 190px);
-  margin: 0 auto;
 }
 
-.stage[data-state="playing"][data-detail="piano"] .piano { display: grid; }
-
 .piano button {
-  border: 3px solid var(--ink);
-  border-radius: 0 0 16px 16px;
-  background: var(--key);
-  box-shadow: 0 6px 0 var(--ink);
+  border-radius: 6px 6px 18px 18px;
+  background: linear-gradient(rgb(255 255 255 / 0.35), transparent 30%), var(--key);
+  box-shadow: 0 7px 0 rgb(47 36 64 / 0.28), var(--lift);
   touch-action: none;
   transition: transform 0.06s, box-shadow 0.06s;
 }
 
-.piano button:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
+.piano button:active { transform: translateY(6px); box-shadow: 0 1px 0 rgb(47 36 64 / 0.28); }
 .piano button:nth-child(1) { --key: #ff6b6b; }
 .piano button:nth-child(2) { --key: #ff9f43; }
 .piano button:nth-child(3) { --key: #ffd93d; }
@@ -307,14 +608,18 @@ button {
 
 @keyframes nudge { to { transform: translateY(-8px); } }
 
-/* Games on top in a row of their own, everything else underneath. */
+/* ---------- Buttons: games on top, everything else underneath ---------- */
+
 .controls {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
+  animation: slide-up 0.4s var(--ease);
 }
 
 .games,
@@ -325,56 +630,55 @@ button {
 
 .games { grid-template-columns: repeat(5, 1fr); }
 .actions { grid-template-columns: repeat(9, 1fr); gap: 5px; }
-.actions button { border-radius: 12px; border-width: 2px; box-shadow: 0 3px 0 var(--ink); }
-.actions .emoji { font-size: 1.25rem; }
-.games .emoji { font-size: 1.7rem; }
 
 .controls button {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 6px 0 5px;
-  border: 3px solid var(--ink);
   border-radius: 16px;
-  font-size: 0.75rem;
-  background: #fff;
-  box-shadow: 0 5px 0 var(--ink);
+  background: linear-gradient(#fff, #f1ebfb);
+  box-shadow: 0 4px 0 var(--edge), 0 8px 12px rgb(47 36 64 / 0.14);
+  font-size: 0.68rem;
   font-weight: 700;
   transition: transform 0.1s, box-shadow 0.1s;
 }
 
 .controls button:active:not(:disabled) {
   transform: translateY(4px);
-  box-shadow: 0 1px 0 var(--ink);
+  box-shadow: 0 0 0 var(--edge);
 }
 
 .controls button:disabled { opacity: 0.45; cursor: default; }
-.controls button.game { background: #ffe38a; } /* games stand out from the other buttons */
-.controls .emoji { line-height: 1.2; }
-.controls .label { display: none; } /* phones show pictures only */
 
-/* ---------- The pet ---------- */
-
-.pet-holder canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  touch-action: none;
-  cursor: pointer;
+/* Games stand out from the other buttons. */
+.controls button.game {
+  background: linear-gradient(#fff0a8, var(--gold));
+  box-shadow: 0 4px 0 var(--gold-edge), 0 8px 12px rgb(47 36 64 / 0.16);
 }
 
-.pet-emoji { font-size: 5rem; line-height: 1.4; }
-.pet-emoji.big { font-size: min(50vw, 14rem); margin: auto; cursor: pointer; user-select: none; }
+.actions button { border-radius: 12px; box-shadow: 0 3px 0 var(--edge), 0 6px 10px rgb(47 36 64 / 0.12); }
+.controls .emoji { line-height: 1.2; }
+.actions .emoji { font-size: 1.25rem; }
+.games .emoji { font-size: 1.7rem; }
+.actions .label { display: none; } /* phones show pictures only for the small buttons */
 
-/* Tablets and wide screens: one row of buttons with names, and four pets per row. */
+/* ---------- Tablets and wide screens ---------- */
+
 @media (min-width: 700px) {
   .controls { max-width: 760px; }
   .actions { gap: 8px; }
-  .controls .label { display: inline; }
-  .controls .emoji { font-size: 1.6rem; }
-  .actions button { border-radius: 16px; border-width: 3px; box-shadow: 0 5px 0 var(--ink); }
+  .controls button { font-size: 0.8rem; }
+  .actions .label { display: inline; }
+  .controls .emoji { font-size: 1.7rem; }
+  .games .emoji { font-size: 2rem; }
+  .actions button { border-radius: 16px; }
   .picker { max-width: 900px; }
   .pet-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* People who ask their device for less motion get the same app without the flourishes. */
+@media (prefers-reduced-motion: reduce) {
+  .screen, .pet-card, .hud, .controls, .board, .palette, .piano, .results-card, .banner span { animation: none; }
+  .confetti { display: none; }
 }

@@ -1,6 +1,6 @@
 // Offline support: use the network when there is one, the saved copy when there isn't.
 
-const CACHE = 'talking-pets-v11';
+const CACHE = 'talking-pets-v12';
 const SHELL = [
   './',
   'index.html',

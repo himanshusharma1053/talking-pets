@@ -47,6 +47,15 @@ export const GAMES = {
   paint: { say: ['Paint me any colour you like!', 'Make me colourful!'] },
 };
 
+// The scenery each game is played in. Anything not listed happens at home.
+export const SCENES = { swing: 'park', catch: 'park', hide: 'park', pop: 'park', penalty: 'pitch', boxing: 'gym', piano: 'show' };
+
+// The ribbon on the card at the end of a game.
+export function ribbonText(score, record) {
+  if (score === 0) return 'Have another go!';
+  return record ? 'New best score!' : 'Well played!';
+}
+
 // Short things the pet says inside the games.
 export const GAME_LINES = {
   hidden: ['Where am I?', 'Find me!', 'Yoo hoo!'],

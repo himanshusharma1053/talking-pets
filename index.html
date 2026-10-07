@@ -14,6 +14,12 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="splash" aria-hidden="true">
+    <span class="splash-paw">🐾</span>
+    <h1>Talking Pets</h1>
+  </div>
+  <!-- If the app cannot start, don't leave the loading screen up for ever. -->
+  <script>setTimeout(() => document.body.classList.add('ready'), 8000);</script>
   <main id="picker" class="screen picker">
     <h1>Talking Pets</h1>
     <div id="pet-grid" class="pet-grid"></div>
@@ -30,7 +36,27 @@
       <span class="hud-time"><i id="hud-time"></i></span>
       <button id="hud-quit" class="chip" type="button" aria-label="Stop the game">✖</button>
     </div>
-    <div id="pet-holder" class="pet-holder"></div>
+    <div class="arena">
+      <div class="scene scene-room"><div class="sky"></div><div class="ground"></div></div>
+      <div class="scene scene-park"><div class="sky"></div><div class="ground"></div></div>
+      <div class="scene scene-pitch"><div class="sky"></div><div class="ground"></div></div>
+      <div class="scene scene-gym"><div class="sky"></div><div class="ground"></div></div>
+      <div class="scene scene-show"><div class="sky"></div><div class="ground"></div></div>
+      <div class="scene scene-night"><div class="sky"></div><div class="ground"></div></div>
+      <div id="pet-holder" class="pet-holder"></div>
+      <div id="banner" class="banner" hidden></div>
+      <div id="results" class="results" hidden>
+        <div class="results-card">
+          <span id="results-ribbon" class="results-ribbon"></span>
+          <p class="results-stars">⭐ <b id="results-score">0</b></p>
+          <p id="results-best" class="results-best"></p>
+          <div class="results-actions">
+            <button id="results-again" class="again" type="button" aria-label="Play again">🔁</button>
+            <button id="results-done" type="button" aria-label="Finish">✔️</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div id="mic-notice" class="mic-notice" hidden>
       <span>The microphone is off, so your pet can't hear you. Taps and games still work.</span>
       <button id="mic-retry" class="chip" type="button">Turn on microphone</button>
@@ -72,6 +98,7 @@
         <button type="button" id="sleep" aria-label="Sleep"><span class="emoji" id="sleep-emoji">🌙</span><span class="label">Sleep</span></button>
       </nav>
     </div>
+    <div id="confetti" class="confetti" aria-hidden="true"></div>
   </main>
 
   <script type="module" src="js/app.js"></script>

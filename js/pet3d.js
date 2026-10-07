@@ -1210,13 +1210,14 @@ function createScene(pet, light) {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.2 }));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
-  scene.add(floor, contactShadow());
+  const shadow = contactShadow();
+  scene.add(floor, shadow);
 
   const model = buildPet(pet);
   scene.add(model.root, model.props);
 
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-  return { scene, camera, model };
+  return { scene, camera, model, shadow };
 }
 
 // Pull the camera back far enough to fit the pet, ears and all, at any screen shape.
@@ -1275,7 +1276,7 @@ export function createPetView(container, pet) {
   let sharpness = Math.min(window.devicePixelRatio, 2);
   renderer.setPixelRatio(sharpness);
   const light = studioLight(renderer);
-  const { scene, camera, model } = createScene(pet, light);
+  const { scene, camera, model, shadow } = createScene(pet, light);
   const canvas = renderer.domElement;
   container.replaceChildren(canvas);
 
@@ -1290,6 +1291,13 @@ export function createPetView(container, pet) {
     v.t += dt;
     v.time += dt;
     pose(model, v, dt, snap);
+    // The shadow stays under the pet, shrinking and fading the higher it is.
+    const body = model.root;
+    const height = clamp01(body.position.y / 2.5);
+    shadow.position.set(body.position.x, 0.02, body.position.z + 0.1);
+    shadow.scale.setScalar(body.scale.x * (1 - height * 0.45));
+    shadow.material.opacity = body.visible ? 1 - height * 0.6 : 0;
+
     const far = v.state === 'playing' ? (GAME_ZOOM[v.detail] ?? 0) : 0;
     if (far !== v.far) {
       const next = v.far + (far - v.far) * (1 - Math.exp(-dt * 4));
