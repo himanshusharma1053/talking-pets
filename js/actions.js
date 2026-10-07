@@ -45,10 +45,15 @@ export const GAMES = {
   simon: { say: ['Watch me, then copy!', 'Copy what I do!'] },
   match: { say: ['Find the two that match!', 'Turn over the cards!'] },
   paint: { say: ['Paint me any colour you like!', 'Make me colourful!'] },
+  dress: { say: ['Dress me up!', 'What shall I wear today?'] },
+  bath: { say: ['Bath time! I am so muddy!', 'Scrub a dub dub!'] },
 };
 
+// Activities with no clock and no score: they go on until you stop.
+export const FREE_PLAY = ['paint', 'dress', 'bath'];
+
 // The scenery each game is played in. Anything not listed happens at home.
-export const SCENES = { swing: 'park', catch: 'park', hide: 'park', pop: 'park', penalty: 'pitch', boxing: 'gym', piano: 'show' };
+export const SCENES = { swing: 'park', catch: 'park', hide: 'park', pop: 'park', penalty: 'pitch', boxing: 'gym', piano: 'show', bath: 'bath' };
 
 // The ribbon on the card at the end of a game.
 export function ribbonText(score, record) {
@@ -65,6 +70,8 @@ export const GAME_LINES = {
   parts: { head: 'Head!', tummy: 'Tummy!', feet: 'Feet!' },
   match: ['A match!', 'You got it!', 'Yes!'],
   painted: ['Ooh, pretty!', 'I love it!', 'That tickles!', 'So colourful!'],
+  dressed: ['Ta-da!', 'How do I look?', 'So fancy!', 'I love it!'],
+  clean: ['All clean! Thank you!', 'Squeaky clean!'],
 };
 
 // What the pet says when a game ends.
@@ -84,8 +91,6 @@ export const GREETINGS = {
 // Poke the head this many times in a row and the pet gets dizzy.
 export const DIZZY_TAPS = 3;
 export const DIZZY_WINDOW_MS = 2500;
-
-export const ACCESSORIES = ['none', 'partyhat', 'crown', 'shades', 'bow'];
 
 // Given the times of recent head pokes, decide whether this one makes the pet dizzy.
 // Returns the pokes to remember for next time and the reaction to play.

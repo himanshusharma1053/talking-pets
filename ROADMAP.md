@@ -8,8 +8,8 @@ The goal: a pet app kids come back to, shipped first as an installable web app (
 - Talk-back: the pet repeats what you say in its own voice.
 - Pokes: head, belly, tail, feet, and a dizzy spell after three head pokes.
 - Nine games with scores: boxing, the swing, catch the food, bubble pop, football penalties, piano, hide and seek, Simon says and memory match.
-- Painting: colour any part of the pet, and it stays that way.
-- Nine buttons: feed, milk, ball, pie, trampoline, dance, toot, dress up, sleep.
+- Free play with no clock: painting the pet, a dress-up wardrobe and bath time.
+- Eight buttons: feed, milk, ball, pie, trampoline, dance, toot, sleep.
 - The pet speaks its reactions aloud; there are no captions to read.
 - Installable, works offline.
 

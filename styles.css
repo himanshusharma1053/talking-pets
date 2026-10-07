@@ -229,7 +229,8 @@ body:has(.picker:not([hidden])) {
 .stage[data-scene="pitch"] .scene-pitch,
 .stage[data-scene="gym"] .scene-gym,
 .stage[data-scene="show"] .scene-show,
-.stage[data-scene="night"] .scene-night { opacity: 1; }
+.stage[data-scene="night"] .scene-night,
+.stage[data-scene="bath"] .scene-bath { opacity: 1; }
 
 /* Home: a sunny room with a window, a picture and a rug. */
 .scene-room .sky { background: radial-gradient(ellipse 70% 45% at 50% 100%, rgb(255 255 255 / 0.55), transparent), linear-gradient(#cfeee6, #a9ddd3); }
@@ -334,6 +335,28 @@ body:has(.picker:not([hidden])) {
     linear-gradient(#141b45, #36407f);
 }
 .scene-night .ground { border-top: 12px solid #5b6096; background: linear-gradient(#565b8f, #383d68); }
+
+/* The bathroom: pale tiles, a round window and a chequered floor. */
+.scene-bath .sky {
+  background:
+    linear-gradient(rgb(255 255 255 / 0.7) 3px, transparent 3px) 0 0 / 56px 56px,
+    linear-gradient(90deg, rgb(255 255 255 / 0.7) 3px, transparent 3px) 0 0 / 56px 56px,
+    linear-gradient(#bfe6f5, #a5d8ec);
+}
+.scene-bath .sky::before {
+  right: 12%;
+  bottom: 190px;
+  width: min(22vw, 110px);
+  aspect-ratio: 1;
+  border: 7px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(ellipse 40% 16% at 45% 60%, #fff 99%, transparent), linear-gradient(#8fd3ff, #d8f3ff);
+  box-shadow: 0 8px 0 rgb(47 36 64 / 0.1);
+}
+.scene-bath .ground {
+  border-top: 12px solid #fff;
+  background: conic-gradient(#e6f4fa 25%, #cfe8f2 0 50%, #e6f4fa 0 75%, #cfe8f2 0) 0 0 / 80px 80px;
+}
 
 /* Text over the darker scenes stays readable. */
 .stage:is([data-scene="gym"], [data-scene="show"], [data-scene="night"]) .top h2 { background: rgb(255 255 255 / 0.9); }
@@ -484,9 +507,9 @@ body:has(.picker:not([hidden])) {
 
 .hud .chip { min-width: 0; }
 
-/* Painting has no score and no clock. */
-.stage[data-detail="paint"] .hud-score,
-.stage[data-detail="paint"] .hud-time { visibility: hidden; }
+/* Free play has no score and no clock. Bath time keeps the bar, to show how clean the pet is. */
+.stage:is([data-detail="paint"], [data-detail="dress"], [data-detail="bath"]) .hud-score,
+.stage:is([data-detail="paint"], [data-detail="dress"]) .hud-time { visibility: hidden; }
 
 /* While a game is on, the buttons step aside to give it the whole screen. */
 .stage[data-state="playing"] .controls,
@@ -511,7 +534,7 @@ body:has(.picker:not([hidden])) {
 
 /* ---------- Game boards that sit below the arena ---------- */
 
-.board, .palette, .piano {
+.board, .palette, .piano, .wardrobe, .tools {
   position: relative;
   z-index: 2;
   display: none;
@@ -524,7 +547,55 @@ body:has(.picker:not([hidden])) {
 
 .stage[data-state="playing"][data-detail="match"] .board,
 .stage[data-state="playing"][data-detail="paint"] .palette,
-.stage[data-state="playing"][data-detail="piano"] .piano { display: grid; }
+.stage[data-state="playing"][data-detail="piano"] .piano,
+.stage[data-state="playing"][data-detail="dress"] .wardrobe,
+.stage[data-state="playing"][data-detail="bath"] .tools { display: grid; }
+
+/* Dressing up: a row of tabs (hats, glasses, neck) over the things in that drawer. */
+.wardrobe { gap: 10px; max-width: 460px; }
+.wardrobe .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wardrobe .items { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; min-height: 58px; }
+
+.wardrobe button {
+  padding: 6px 0;
+  border-radius: 16px;
+  background: linear-gradient(#fff, #f1ebfb);
+  box-shadow: 0 4px 0 var(--edge), var(--lift);
+  font-size: 1.7rem;
+  line-height: 1.2;
+  transition: transform 0.1s var(--ease);
+}
+
+.wardrobe .tab { font-size: 1.4rem; opacity: 0.7; }
+.wardrobe .tab.on { opacity: 1; background: linear-gradient(#fff0a8, var(--gold)); box-shadow: 0 4px 0 var(--gold-edge), var(--lift); }
+.wardrobe .item.on { transform: scale(1.1); box-shadow: 0 0 0 4px var(--accent), var(--lift); }
+
+/* Bath time: soap, shower, towel. */
+.tools { grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 360px; }
+
+.tools button {
+  display: grid;
+  place-items: center;
+  height: 68px;
+  border-radius: 20px;
+  background: linear-gradient(#fff, #e9f6fb);
+  box-shadow: 0 5px 0 #b9d9e6, var(--lift);
+  font-size: 2.2rem;
+  transition: transform 0.1s var(--ease);
+}
+
+.tools button.on { transform: scale(1.08); box-shadow: 0 0 0 4px #4d96ff, var(--lift); }
+.tools button.next:not(.on) { animation: nudge 0.5s ease-in-out infinite alternate; } /* "try this one next" */
+
+/* There is no towel emoji, so this one is drawn. */
+.towel {
+  display: block;
+  width: 42px;
+  height: 34px;
+  border-radius: 6px;
+  background: repeating-linear-gradient(90deg, #ff9fc2 0 8px, #fff 8px 14px);
+  box-shadow: 0 5px 0 -1px #ff7aa8, inset 0 -6px 0 rgb(0 0 0 / 0.06);
+}
 
 /* Memory match: the cards. */
 .board {
@@ -628,8 +699,9 @@ body:has(.picker:not([hidden])) {
   gap: 8px;
 }
 
-.games { grid-template-columns: repeat(5, 1fr); }
-.actions { grid-template-columns: repeat(9, 1fr); gap: 5px; }
+.games { grid-template-columns: repeat(6, 1fr); }
+.games .label { font-size: 0.58rem; white-space: nowrap; }
+.actions { grid-template-columns: repeat(8, 1fr); gap: 5px; }
 
 .controls button {
   display: flex;
@@ -669,6 +741,7 @@ body:has(.picker:not([hidden])) {
   .controls { max-width: 760px; }
   .actions { gap: 8px; }
   .controls button { font-size: 0.8rem; }
+  .games .label { font-size: 0.8rem; }
   .actions .label { display: inline; }
   .controls .emoji { font-size: 1.7rem; }
   .games .emoji { font-size: 2rem; }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PETS, findPet } from '../js/pets.js';
-import { ACTIONS, REACTIONS, GAMES, GREETINGS, CUES, ACCESSORIES, DIZZY_WINDOW_MS, headPoke, pickLine, scoreLine } from '../js/actions.js';
+import { ACTIONS, REACTIONS, GAMES, GREETINGS, CUES, FREE_PLAY, DIZZY_WINDOW_MS, headPoke, pickLine, scoreLine } from '../js/actions.js';
 
 test('there are eight pets with unique ids and names', () => {
   assert.equal(PETS.length, 8);
@@ -59,9 +59,8 @@ test('the trampoline action is a whole number of bounces', () => {
   assert.ok(Math.abs(bounces - Math.round(bounces)) < 1e-9);
 });
 
-test('dress-up starts with nothing on', () => {
-  assert.equal(ACCESSORIES[0], 'none');
-  assert.equal(new Set(ACCESSORIES).size, ACCESSORIES.length);
+test('every free-play activity is a real game', () => {
+  for (const name of FREE_PLAY) assert.ok(name in GAMES, name);
 });
 
 test('pickLine covers every line and never runs off the end', () => {

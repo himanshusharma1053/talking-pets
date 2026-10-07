@@ -1,12 +1,12 @@
 import { PETS, findPet } from './pets.js';
 import { nextState, micOpen } from './state.js';
 import {
-  ACTIONS, REACTIONS, GAMES, GAME_LINES, GREETINGS, ACCESSORIES, CUES, SCENES,
+  ACTIONS, REACTIONS, GAMES, GAME_LINES, GREETINGS, CUES, SCENES, FREE_PLAY,
   headPoke, pickLine, scoreLine, ribbonText,
 } from './actions.js';
 import {
-  POP, PENALTY, SCALE, PALETTE, createBoxing, createSwing, createCatch, createPop, createPenalty,
-  createPiano, createHide, createSimon, createMatch, createPaint, newRecord,
+  POP, PENALTY, SCALE, PALETTE, WARDROBE, SLOTS, createBoxing, createSwing, createCatch, createPop, createPenalty,
+  createPiano, createHide, createSimon, createMatch, createPaint, createDress, createBath, cleanOutfit, newRecord,
 } from './games.js';
 import { createSounds } from './sounds.js';
 import { createVoice, playSamples } from './voice.js';
@@ -63,7 +63,8 @@ const actionButtons = [...document.querySelectorAll('.controls button')];
 const NEW_GAME = {
   boxing: createBoxing, swing: createSwing, catch: createCatch, pop: createPop,
   penalty: createPenalty, piano: createPiano, hide: createHide, simon: createSimon,
-  match: createMatch, paint: createPaint,
+  match: createMatch, paint: createPaint, bath: createBath,
+  dress: () => createDress(outfit),
 };
 // In Simon says: the part of the pet you tap, the move it stands for, and its note.
 const SIMON_MOVE = { head: 'head', belly: 'tummy', feet: 'feet' };
@@ -75,7 +76,9 @@ let view = null;
 let state = 'idle';
 let detail = null; // the part poked or the button pressed
 let headTaps = [];
-let accessory = 0;
+let outfit = cleanOutfit(); // what the pet is wearing
+let bathTouch = null; // where a finger is scrubbing, during bath time
+let scrubbed = 0; // seconds of scrubbing since the last scrubbing sound
 let ctx = null;
 let sounds = null;
 let voice = null;
@@ -146,7 +149,7 @@ function emojiView() {
     setState: nothing,
     setMouth: nothing,
     setLook: nothing,
-    setAccessory: nothing,
+    setOutfit: nothing,
     setGame: nothing,
     worldX: () => 0,
     aim: () => ({ x: 0, y: 0 }),
@@ -171,7 +174,8 @@ function choosePet(id) {
   } catch {
     view = emojiView();
   }
-  view.setAccessory(ACCESSORIES[accessory]);
+  outfit = savedOutfit(pet.id);
+  view.setOutfit(outfit);
   view.setPaint(savedPaint(pet.id));
   view.setTicker(tick);
   enter('idle', GREETINGS.hello);
@@ -244,6 +248,7 @@ function quiet() {
   game = null;
   fx = null;
   countdown = 0;
+  bathTouch = null;
   $('banner').hidden = true;
   view?.setGame(null);
   for (const key of pianoKeys) key.classList.remove('next');
@@ -284,7 +289,9 @@ function enter(to, payload, line) {
       boardShown = '';
       shownScore = 0;
       showColor();
-      if (detail !== 'paint') startCountdown(); // painting has nothing to race
+      if (detail === 'dress') renderWardrobe();
+      if (detail === 'bath') showTool();
+      if (!FREE_PLAY.includes(detail)) startCountdown(); // free play has nothing to race
       break;
     case 'sleeping':
       lines = payload;
@@ -327,6 +334,14 @@ function tick(dt) {
     return;
   }
   if (fx && (fx.t += dt) > 0.6) fx = null;
+  if (bathTouch && game.state.kind === 'bath' && game.rub(view.pick(bathTouch.x, bathTouch.y), dt)) {
+    // Scrubbing makes a little noise every so often, not on every frame.
+    if ((scrubbed += dt) > 0.28) {
+      scrubbed = 0;
+      if (game.state.tool === 'shower') sounds?.whoosh();
+      else sounds?.bloop();
+    }
+  }
   for (const event of game.update(dt)) {
     if (event === 'spawn') sounds?.blip();
     else if (event === 'miss') {
@@ -356,8 +371,13 @@ function tick(dt) {
       sounds?.note(SIMON_NOTE[game.state.showing], pet);
       say(GAME_LINES.parts[game.state.showing], pet);
     } else if (event === 'go') sounds?.blip();
-    else if (event === 'end') {
-      endGame();
+    else if (event === 'clean') {
+      sounds?.fanfare();
+      throwConfetti();
+      say(pickLine(GAME_LINES.clean), pet);
+    } else if (event === 'end') {
+      if (FREE_PLAY.includes(game.state.kind)) dispatch('quit'); // nothing to score
+      else endGame();
       return;
     }
   }
@@ -400,6 +420,10 @@ function gameTap(zone, clientX, clientY) {
       sounds?.ding();
       say(pickLine(GAME_LINES.round), pet);
     }
+  } else if (kind === 'bath') {
+    bathTouch = { x: clientX, y: clientY }; // the scrubbing itself happens frame by frame
+  } else if (kind === 'dress') {
+    // Clothes are chosen from the wardrobe, not by tapping the pet.
   } else if (kind === 'paint') {
     if (!view.paint(clientX, clientY, game.state.color)) return;
     game.stroke();
@@ -454,6 +478,9 @@ function renderHud() {
   $('hud-time').parentElement.classList.toggle('low', seconds > 1 && left < 5);
   $('hud-score').textContent = score;
   if (game.state.kind === 'match') renderBoard();
+  if (game.state.kind === 'bath') {
+    for (const button of tools.children) button.classList.toggle('next', button.dataset.tool === game.state.next && !game.state.clean);
+  }
   pianoKeys.forEach((key, i) => key.classList.toggle('next', game.state.kind === 'piano' && i === game.state.next));
   $('hud-time').style.transform = `scaleX(${game.state.left / game.state.seconds})`;
 }
@@ -571,6 +598,73 @@ board.addEventListener('pointerdown', (e) => {
   renderBoard();
 });
 
+// ----- Dressing up: the wardrobe -----
+
+const wardrobe = $('wardrobe');
+
+function renderWardrobe() {
+  const { slot, outfit: worn } = game.state;
+  const tabs = SLOTS.map(([id, icon]) => `<button type="button" class="tab${id === slot ? ' on' : ''}" data-slot="${id}" aria-label="${id}">${icon}</button>`).join('');
+  const items = WARDROBE[slot].map((item) => `<button type="button" class="item${worn[slot] === item.id ? ' on' : ''}" data-item="${item.id}" aria-label="${item.id}">${item.icon}</button>`).join('');
+  wardrobe.innerHTML = `<div class="tabs">${tabs}</div><div class="items">${items}</div>`;
+}
+
+wardrobe.addEventListener('click', (e) => {
+  if (game?.state.kind !== 'dress') return;
+  const tab = e.target.closest('[data-slot]');
+  const item = e.target.closest('[data-item]');
+  if (tab) {
+    game.choose(tab.dataset.slot);
+    sounds?.blip();
+  } else if (item) {
+    const result = game.wear(item.dataset.item);
+    outfit = { ...game.state.outfit };
+    view.setOutfit(outfit);
+    saveOutfit();
+    sounds?.pop();
+    if (result === 'on') {
+      fx = { kind: 'wear', t: 0 };
+      if (game.state.changes % 3 === 1) say(pickLine(GAME_LINES.dressed), pet);
+    }
+  } else return;
+  renderWardrobe();
+});
+
+// Each pet's outfit is kept on this device.
+const outfitKey = (id) => `talking-pets:outfit:${id}`;
+
+function savedOutfit(id) {
+  try {
+    return cleanOutfit(JSON.parse(localStorage.getItem(outfitKey(id))));
+  } catch {
+    return cleanOutfit();
+  }
+}
+
+function saveOutfit() {
+  try {
+    localStorage.setItem(outfitKey(pet.id), JSON.stringify(outfit));
+  } catch {
+    // Private browsing: the outfit just isn't remembered.
+  }
+}
+
+// ----- Bath time: the soap, shower and towel -----
+
+const tools = $('tools');
+
+function showTool() {
+  for (const button of tools.children) button.classList.toggle('on', button.dataset.tool === game?.state.tool);
+}
+
+tools.addEventListener('click', (e) => {
+  const button = e.target.closest('[data-tool]');
+  if (!button || game?.state.kind !== 'bath') return;
+  game.choose(button.dataset.tool);
+  sounds?.blip();
+  showTool();
+});
+
 // ----- Painting: the colours -----
 
 const palette = $('palette');
@@ -648,18 +742,17 @@ holder.addEventListener('pointerdown', (e) => {
 // The pet watches your finger or mouse, and in the catching game runs after it.
 holder.addEventListener('pointermove', (e) => {
   if (game?.state.kind === 'catch') game.steer(view.worldX(e.clientX));
+  if (bathTouch) bathTouch = { x: e.clientX, y: e.clientY };
   const rect = holder.getBoundingClientRect();
   view.setLook(((e.clientX - rect.left) / rect.width) * 2 - 1, -(((e.clientY - rect.top) / rect.height) * 2 - 1));
 });
 holder.addEventListener('pointerleave', () => view.setLook(0, 0));
+for (const lifted of ['pointerup', 'pointercancel', 'pointerleave']) holder.addEventListener(lifted, () => (bathTouch = null));
 
 for (const button of actionButtons) {
   button.addEventListener('click', () => {
     if (button.id === 'sleep') dispatch('sleep');
-    else if (button.id === 'dress') {
-      accessory = (accessory + 1) % ACCESSORIES.length;
-      view.setAccessory(ACCESSORIES[accessory]);
-    } else if (button.dataset.game) dispatch('play', button.dataset.game);
+    else if (button.dataset.game) dispatch('play', button.dataset.game);
     else dispatch('act', button.dataset.action);
   });
 }

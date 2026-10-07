@@ -43,6 +43,7 @@
       <div class="scene scene-gym"><div class="sky"></div><div class="ground"></div></div>
       <div class="scene scene-show"><div class="sky"></div><div class="ground"></div></div>
       <div class="scene scene-night"><div class="sky"></div><div class="ground"></div></div>
+      <div class="scene scene-bath"><div class="sky"></div><div class="ground"></div></div>
       <div id="pet-holder" class="pet-holder"></div>
       <div id="banner" class="banner" hidden></div>
       <div id="results" class="results" hidden>
@@ -63,6 +64,12 @@
     </div>
     <div id="board" class="board" aria-label="Memory cards"></div>
     <div id="palette" class="palette" aria-label="Paint colours"></div>
+    <div id="wardrobe" class="wardrobe" aria-label="Wardrobe"></div>
+    <div id="tools" class="tools" aria-label="Bath things">
+      <button type="button" data-tool="soap" aria-label="Soap">🧼</button>
+      <button type="button" data-tool="shower" aria-label="Shower">🚿</button>
+      <button type="button" data-tool="towel" aria-label="Towel"><span class="towel"></span></button>
+    </div>
     <div class="piano" aria-label="Piano keys">
       <button type="button" aria-label="Note 1"></button>
       <button type="button" aria-label="Note 2"></button>
@@ -85,6 +92,8 @@
         <button type="button" class="game" data-game="simon" aria-label="Simon says game"><span class="emoji">🙋</span><span class="label">Copy me</span></button>
         <button type="button" class="game" data-game="match" aria-label="Memory match game"><span class="emoji">🃏</span><span class="label">Match</span></button>
         <button type="button" class="game" data-game="paint" aria-label="Paint your pet"><span class="emoji">🎨</span><span class="label">Paint</span></button>
+        <button type="button" class="game" data-game="dress" aria-label="Dress up"><span class="emoji">👗</span><span class="label">Dress up</span></button>
+        <button type="button" class="game" data-game="bath" aria-label="Bath time"><span class="emoji">🛁</span><span class="label">Bath</span></button>
       </nav>
       <nav class="actions" aria-label="Things to do">
         <button type="button" data-action="feed" aria-label="Feed"><span class="emoji" id="feed-emoji">🍽️</span><span class="label">Feed</span></button>
@@ -94,7 +103,6 @@
         <button type="button" data-action="trampoline" aria-label="Trampoline"><span class="emoji">🤸</span><span class="label">Jump</span></button>
         <button type="button" data-action="dance" aria-label="Dance"><span class="emoji">🎵</span><span class="label">Dance</span></button>
         <button type="button" data-action="toot" aria-label="Toot"><span class="emoji">💨</span><span class="label">Toot</span></button>
-        <button type="button" id="dress" aria-label="Dress up"><span class="emoji">🎩</span><span class="label">Dress up</span></button>
         <button type="button" id="sleep" aria-label="Sleep"><span class="emoji" id="sleep-emoji">🌙</span><span class="label">Sleep</span></button>
       </nav>
     </div>

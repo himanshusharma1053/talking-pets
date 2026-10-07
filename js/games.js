@@ -613,6 +613,135 @@ export function createPaint() {
   };
 }
 
+// Everything in the wardrobe, by where it is worn. One thing per place.
+export const WARDROBE = {
+  head: [
+    { id: 'partyhat', icon: '🎉' },
+    { id: 'crown', icon: '👑' },
+    { id: 'tophat', icon: '🎩' },
+    { id: 'cap', icon: '🧢' },
+    { id: 'wizard', icon: '🧙' },
+    { id: 'flower', icon: '🌸' },
+  ],
+  eyes: [
+    { id: 'shades', icon: '🕶️' },
+    { id: 'round', icon: '👓' },
+    { id: 'rosy', icon: '💗' },
+  ],
+  neck: [
+    { id: 'bow', icon: '🎀' },
+    { id: 'scarf', icon: '🧣' },
+    { id: 'beads', icon: '📿' },
+    { id: 'cape', icon: '🦸' },
+    { id: 'medal', icon: '🏅' },
+  ],
+};
+export const SLOTS = [['head', '🎩'], ['eyes', '👓'], ['neck', '🧣']];
+
+// Keep only real clothes in real places, e.g. from an outfit saved long ago.
+export function cleanOutfit(saved) {
+  const outfit = {};
+  for (const [slot] of SLOTS) {
+    const id = saved?.[slot];
+    outfit[slot] = WARDROBE[slot].some((item) => item.id === id) ? id : null;
+  }
+  return outfit;
+}
+
+// Dressing up: no clock and no score.
+export function createDress(wearing) {
+  const g = { kind: 'dress', seconds: 1, time: 0, left: 1, score: 0, slot: 'head', outfit: cleanOutfit(wearing), changes: 0, over: false };
+  return {
+    state: g,
+    update() {
+      return [];
+    },
+    // Look at another part of the wardrobe.
+    choose(slot) {
+      if (slot in WARDROBE) g.slot = slot;
+    },
+    // Put this on, or take it off if it is already on. Returns 'on', 'off' or null.
+    wear(id) {
+      if (!WARDROBE[g.slot].some((item) => item.id === id)) return null;
+      const taking = g.outfit[g.slot] === id;
+      g.outfit[g.slot] = taking ? null : id;
+      g.changes += 1;
+      return taking ? 'off' : 'on';
+    },
+  };
+}
+
+export const BATH = {
+  zones: ['head', 'belly'], // the parts that need washing
+  tools: ['soap', 'shower', 'towel'],
+  rubTime: 1.2, // seconds of rubbing each part needs with each tool
+  finishTime: 3, // seconds of being pleased with itself before the bath ends
+};
+
+// Bath time: soap the mud off, shower the suds away, towel dry. Each part of
+// the pet tracks how muddy, sudsy and wet it is, from 0 to 1.
+export function createBath() {
+  const part = () => ({ dirt: 1, foam: 0, wet: 0, soaped: false, rinsed: false });
+  const g = {
+    kind: 'bath', seconds: 1, time: 0, left: 0, score: 0, tool: 'soap', next: 'soap',
+    zones: Object.fromEntries(BATH.zones.map((zone) => [zone, part()])),
+    rubbing: null, clean: false, t: 0, over: false,
+  };
+  const parts = () => Object.values(g.zones);
+
+  return {
+    state: g,
+    // Move time on by dt seconds. Returns what happened: 'clean', 'end'.
+    update(dt) {
+      const events = [];
+      if (g.over) return events;
+      g.time += dt;
+      // How far through the whole bath we are, for the progress bar.
+      g.left = parts().reduce((sum, p) => sum + (1 - p.dirt) + (p.soaped ? 1 - p.foam : 0) + (p.rinsed ? 1 - p.wet : 0), 0) / (parts().length * 3);
+      // What would help most right now, so the right tool can be pointed out.
+      g.next = parts().some((p) => p.dirt > 0) ? 'soap' : parts().some((p) => p.foam > 0 || !p.rinsed) ? 'shower' : 'towel';
+      if (!g.clean && parts().every((p) => p.rinsed && p.dirt === 0 && p.foam === 0 && p.wet === 0)) {
+        g.clean = true;
+        g.t = 0;
+        events.push('clean');
+      } else if (g.clean && (g.t += dt) >= BATH.finishTime) {
+        g.over = true;
+        events.push('end');
+      }
+      return events;
+    },
+    choose(tool) {
+      if (BATH.tools.includes(tool)) g.tool = tool;
+    },
+    // Use the chosen tool on this part for dt seconds. The shower falls on
+    // everything, so it needs no part. Returns whether it did anything.
+    rub(zone, dt) {
+      if (g.clean || g.over) return false;
+      const amount = dt / BATH.rubTime;
+      const p = g.zones[zone];
+      if (g.tool === 'shower') {
+        for (const each of parts()) {
+          each.foam = Math.max(0, each.foam - amount);
+          each.wet = 1;
+          if (each.soaped && each.foam === 0) each.rinsed = true;
+        }
+      } else if (!p) {
+        return false;
+      } else if (g.tool === 'soap') {
+        p.dirt = Math.max(0, p.dirt - amount);
+        p.foam = Math.min(1, p.foam + amount);
+        p.soaped = true;
+        p.rinsed = false;
+      } else {
+        if (p.foam > 0) return false; // a towel only smears the suds about
+        p.wet = Math.max(0, p.wet - amount);
+      }
+      g.rubbing = { zone, tool: g.tool, at: g.time };
+      return true;
+    },
+  };
+}
+
 // Compare a finished game's score with the best so far.
 export function newRecord(score, best) {
   return score > 0 && score > (best ?? 0);

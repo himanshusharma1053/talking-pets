@@ -61,7 +61,7 @@ const SWING_LENGTH = 6;
 const PAD_SLOTS = [[-1.2, 3.6], [1.2, 3.6], [-1.3, 2.4], [1.3, 2.4], [-1.15, 1.1], [1.15, 1.1]];
 
 // How far the camera pulls back for each game (0 = the normal view).
-const GAME_ZOOM = { swing: 1, catch: 0.6, pop: 0.35, penalty: 0.55, hide: 0.6 };
+const GAME_ZOOM = { swing: 1, catch: 0.6, pop: 0.35, penalty: 0.55, hide: 0.6, bath: 0.3 };
 
 // Where each part the pet points to in Simon says is: [x, y].
 const PART_AT = { head: [0, 3.2], tummy: [0, 1.25], feet: [0, 0.35] };
@@ -293,33 +293,110 @@ function buildPet(pet) {
   blob(cream, M.white, 0.13, [0.36, -0.4, 0.05]);
   blob(cream, M.white, 0.14, [0.05, 0.42, -0.05]);
 
-  // ----- Dress-up -----
-  const accessories = {};
-  const hat = (accessories.partyhat = group(head, [0.12, 1.58, 0]));
+  // ----- Dress-up: everything in the wardrobe, hidden until worn -----
+  const rod = (parent, material, radius, height, pos, rot) =>
+    add(parent, new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 28), material), pos, rot);
+  const ring = (parent, material, radius, thickness, pos, rot) =>
+    add(parent, new THREE.Mesh(new THREE.TorusGeometry(radius, thickness, 10, 32), material), pos, rot);
+  const FLAT = [Math.PI / 2, 0, 0]; // lying down, like a hat brim
+  const wardrobe = { head: {}, eyes: {}, neck: {} };
+  const gold = M.gold;
+  const red = M.red;
+  const black = glossy('#16161c');
+  const yellow = matte('#ffd23f');
+
+  // Hats sit on the head and move with it.
+  const hat = (wardrobe.head.partyhat = group(head, [0.12, 1.58, 0]));
   hat.rotation.z = -0.18;
   cone(hat, matte('#ff4f8b'), 0.4, 0.9, [0, 0.45, 0]);
-  blob(hat, matte('#ffd23f'), 0.12, [0, 0.93, 0]);
-  add(hat, new THREE.Mesh(new THREE.TorusGeometry(0.39, 0.05, 10, 32), matte('#ffd23f')), [0, 0.02, 0], [Math.PI / 2, 0, 0]);
+  blob(hat, yellow, 0.12, [0, 0.93, 0]);
+  ring(hat, yellow, 0.39, 0.05, [0, 0.02, 0], FLAT);
 
-  const gold = M.gold;
-  const crown = (accessories.crown = group(head, [0, 1.6, 0]));
-  add(crown, new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.38, 0.28, 28), gold), [0, 0.14, 0]);
+  const crown = (wardrobe.head.crown = group(head, [0, 1.6, 0]));
+  rod(crown, gold, 0.42, 0.28, [0, 0.14, 0]);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * TWO_PI;
     cone(crown, gold, 0.1, 0.24, [Math.sin(a) * 0.37, 0.39, Math.cos(a) * 0.37]);
     blob(crown, glossy(i % 2 ? '#e63946' : '#3a86ff'), 0.05, [Math.sin(a) * 0.43, 0.14, Math.cos(a) * 0.43]);
   }
 
-  const shades = (accessories.shades = group(head, [0, 0.98, 0.9]));
-  sides((s) => blob(shades, glossy('#16161c'), 0.32, [s * 0.4, 0, 0], [1, 0.85, 0.3]));
-  add(shades, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.05), glossy('#16161c')), [0, 0.06, 0.03]);
+  const tophat = (wardrobe.head.tophat = group(head, [0, 1.62, 0]));
+  tophat.rotation.z = -0.1;
+  rod(tophat, black, 0.6, 0.06, [0, 0, 0]);
+  rod(tophat, black, 0.37, 0.64, [0, 0.33, 0]);
+  rod(tophat, red, 0.38, 0.12, [0, 0.1, 0]);
 
-  const red = M.red;
-  const bow = (accessories.bow = group(root, [0, 1.93, 0.56], 'belly'));
+  const cap = (wardrobe.head.cap = group(head, [0, 1.25, 0]));
+  const denim = matte('#3a86ff');
+  blob(cap, denim, 0.98, [0, 0, 0], [1, 0.55, 1]);
+  blob(cap, denim, 0.5, [0, 0.02, 0.9], [1, 0.12, 0.9]); // peak
+  blob(cap, M.white, 0.07, [0, 0.55, 0]);
+
+  const wizard = (wardrobe.head.wizard = group(head, [0, 1.58, 0]));
+  wizard.rotation.z = 0.12;
+  const robe = matte('#6a4bd8');
+  rod(wizard, robe, 0.74, 0.06, [0, 0, 0]);
+  cone(wizard, robe, 0.5, 1.3, [0, 0.66, 0]);
+  blob(wizard, yellow, 0.1, [0, 0.5, 0.36]);
+  blob(wizard, yellow, 0.07, [0.2, 0.85, 0.2]);
+
+  const flower = (wardrobe.head.flower = group(head, [0.55, 1.48, 0.38]));
+  flower.rotation.x = -0.5;
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * TWO_PI;
+    blob(flower, matte('#ff7ac3'), 0.15, [Math.cos(a) * 0.2, Math.sin(a) * 0.2, 0], [1, 1, 0.5]);
+  }
+  blob(flower, yellow, 0.13, [0, 0, 0.06]);
+
+  // Glasses sit in front of the eyes.
+  const shades = (wardrobe.eyes.shades = group(head, [0, 0.98, 0.9]));
+  sides((s) => blob(shades, black, 0.32, [s * 0.4, 0, 0], [1, 0.85, 0.3]));
+  add(shades, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.05), black), [0, 0.06, 0.03]);
+
+  const round = (wardrobe.eyes.round = group(head, [0, 0.98, 0.95]));
+  sides((s) => ring(round, gold, 0.3, 0.035, [s * 0.4, 0, 0]));
+  rod(round, gold, 0.025, 0.24, [0, 0.05, 0], [0, 0, Math.PI / 2]);
+
+  const rosy = (wardrobe.eyes.rosy = group(head, [0, 0.98, 0.95]));
+  const pinkFrame = glossy('#ff5fa8');
+  const pinkLens = new THREE.MeshStandardMaterial({ color: '#ff9fd0', transparent: true, opacity: 0.45, roughness: 0.1 });
+  sides((s) => {
+    ring(rosy, pinkFrame, 0.31, 0.05, [s * 0.4, 0, 0]);
+    blob(rosy, pinkLens, 0.3, [s * 0.4, 0, -0.02], [1, 1, 0.1]).castShadow = false;
+  });
+  rod(rosy, pinkFrame, 0.035, 0.22, [0, 0.05, 0], [0, 0, Math.PI / 2]);
+
+  // Things worn round the neck stay with the body.
+  const bow = (wardrobe.neck.bow = group(root, [0, 1.93, 0.56], 'belly'));
   sides((s) => cone(bow, red, 0.2, 0.36, [s * 0.2, 0, 0], [0, 0, (s * Math.PI) / 2]));
   blob(bow, red, 0.1, [0, 0, 0.02]);
 
-  for (const item of Object.values(accessories)) item.visible = false;
+  const scarf = (wardrobe.neck.scarf = group(root, [0, 1.98, 0], 'belly'));
+  const wool = matte('#ff5d5d');
+  ring(scarf, wool, 0.58, 0.16, [0, 0, 0.05], FLAT);
+  blob(scarf, wool, 0.16, [0.36, -0.42, 0.6], [1, 2.6, 0.6], [0, 0, 0.2]);
+  blob(scarf, M.white, 0.17, [0.42, -0.78, 0.62], [1, 0.5, 0.6], [0, 0, 0.2]);
+
+  const beads = (wardrobe.neck.beads = group(root, [0, 1.84, 0.08], 'belly'));
+  beads.rotation.x = 0.4;
+  const beadColors = [glossy('#4dd4c0'), glossy('#ffd93d'), glossy('#ff7ac3')];
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * TWO_PI;
+    blob(beads, beadColors[i % 3], 0.075, [Math.sin(a) * 0.68, 0, Math.cos(a) * 0.68]);
+  }
+
+  const cape = (wardrobe.neck.cape = group(root, [0, 0, 0], 'belly'));
+  blob(cape, red, 1, [0, 1.12, -0.74], [0.98, 1.15, 0.1]);
+  ring(cape, red, 0.56, 0.1, [0, 1.98, 0], FLAT);
+  blob(cape, yellow, 0.1, [0, 1.95, 0.6]);
+
+  const medal = (wardrobe.neck.medal = group(root, [0, 0, 0], 'belly'));
+  const strap = matte('#3a86ff');
+  sides((s) => add(medal, new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.62, 0.04), strap), [s * 0.17, 1.72, 0.66], [0.25, 0, s * 0.52]));
+  rod(medal, gold, 0.2, 0.05, [0, 1.42, 0.8], FLAT);
+  blob(medal, yellow, 0.09, [0, 1.42, 0.83], [1, 1, 0.3]);
+
+  for (const items of Object.values(wardrobe)) for (const item of Object.values(items)) item.visible = false;
 
   // ----- What the pet eats and drinks, held in its right paw -----
   // Built upright for the angle the arm is held at while eating.
@@ -449,6 +526,44 @@ function buildPet(pet) {
   for (const side of [-1, 1]) blob(present, ribbon, 0.28, [side * 0.26, 2.5, 0], [1.2, 0.7, 0.6], [0, 0, side * 0.4]);
   P.puffs = P.spots.map(() => textSprite('💨'));
 
+  // ----- Bath time: mud to wash off, suds, drips, and a tub to sit in -----
+  const mud = matte('#7a5230');
+  const suds = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.35 });
+  const wetness = glossy('#6ec3ff');
+  // Where the mud is, on the parts that show above the tub.
+  const MUDDY = {
+    head: [[-0.5, 1.3, 0.66], [0.55, 0.72, 0.74], [0.15, 1.52, 0.56]],
+    belly: [[-0.4, 1.62, 0.5], [0.38, 1.36, 0.7], [0, 1.82, 0.44]],
+  };
+  const bath = {};
+  for (const [zone, parent] of [['head', head], ['belly', torso]]) {
+    bath[zone] = { dirt: [], foam: [], drops: [] };
+    for (const [x, y, z] of MUDDY[zone]) {
+      bath[zone].dirt.push(blob(parent, mud, 0.2, [x, y, z + 0.04], [1, 0.8, 0.4]));
+      const cluster = group(parent, [x, y, z + 0.12]);
+      blob(cluster, suds, 0.2, [0, 0, 0]);
+      blob(cluster, suds, 0.15, [0.18, 0.1, 0]);
+      blob(cluster, suds, 0.13, [-0.15, 0.12, 0.02]);
+      blob(cluster, suds, 0.12, [0.02, -0.16, 0.03]);
+      bath[zone].foam.push(cluster);
+      bath[zone].drops.push(blob(parent, wetness, 0.06, [x * 0.8 + 0.1, y - 0.25, z + 0.1], [1, 1.4, 1]));
+    }
+  }
+  const washing = Object.values(bath).flatMap((parts) => [...parts.dirt, ...parts.foam, ...parts.drops]);
+  for (const item of washing) item.userData.rest = item.scale.clone();
+
+  P.tub = group(props, [0, 0, 0.25]);
+  P.tub.scale.z = 0.62; // an oval, not a barrel
+  const enamel = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.25, side: THREE.DoubleSide });
+  add(P.tub, new THREE.Mesh(new THREE.CylinderGeometry(2.0, 1.7, 1.35, 40, 1, true), enamel), [0, 0.7, 0]);
+  rod(P.tub, enamel, 1.7, 0.06, [0, 0.05, 0]);
+  ring(P.tub, enamel, 2.0, 0.11, [0, 1.38, 0], FLAT);
+  const bathWater = new THREE.MeshStandardMaterial({ color: '#8fd3ff', transparent: true, opacity: 0.65, roughness: 0.1 });
+  add(P.tub, new THREE.Mesh(new THREE.CircleGeometry(1.93, 40), bathWater), [0, 1.18, 0], [-Math.PI / 2, 0, 0]).castShadow = false;
+  for (const [x, z] of [[-1.3, 1], [1.3, 1], [-1.3, -1], [1.3, -1]]) blob(P.tub, gold, 0.16, [x, 0.08, z]);
+  for (const [x, y, size] of [[-1.5, 1.5, 0.22], [-1.2, 1.62, 0.16], [1.45, 1.52, 0.2], [1.7, 1.42, 0.14]]) blob(P.tub, suds, size, [x, y, 0.9]);
+  P.shower = Array.from({ length: 8 }, () => textSprite('💧'));
+
   P.football = new THREE.Group();
   props.add(P.football);
   blob(P.football, glossy('#ffffff'), 1, [0, 0, 0]);
@@ -485,7 +600,7 @@ function buildPet(pet) {
   });
   P.yuck = textSprite('🤢');
 
-  props.add(...P.puffs, P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles, ...P.falling, P.yuck, P.pow, P.sparkle, P.star, P.bell, ...P.confetti);
+  props.add(...P.puffs, ...P.shower, P.cloud, P.pie, ...P.notes, ...P.zzz, ball, ...P.bubbles, ...P.falling, P.yuck, P.pow, P.sparkle, P.star, P.bell, ...P.confetti);
 
   // Split the fur into separately paintable regions (head, ears, tummy, arms…):
   // each part of the body gets its own copy of each colour it uses.
@@ -506,9 +621,9 @@ function buildPet(pet) {
   for (const cheek of cheeks) cheek.userData.rest = cheek.scale.clone();
 
   return {
-    root, props, head, armL, armR, tail, eyes, pupils, mouth, smile, cream, accessories, P,
+    root, props, head, armL, armR, tail, eyes, pupils, mouth, smile, cream, wardrobe, bath, P,
     ears, cheeks, paintable, meal, crumbs, glass, milk, moustache,
-    hideable: [...props.children, ...stars, ...gloves, ...crumbs, cream, meal, glass, moustache],
+    hideable: [...props.children, ...stars, ...gloves, ...crumbs, ...washing, cream, meal, glass, moustache],
   };
 }
 
@@ -1037,6 +1152,77 @@ function pose(m, v, dt, snap) {
       break;
     }
 
+    case 'dress-game': {
+      const fx = v.game?.fx;
+      T.armL = -0.6;
+      T.armR = 0.6;
+      if (fx?.kind === 'wear') {
+        // A little turn to show it off.
+        const p = fx.t / 0.6;
+        T.ry = Math.sin(p * Math.PI) * 0.8;
+        T.y = arc(p) * 0.3;
+        T.armL = -1.6;
+        T.armR = 1.6;
+        T.mouth = 0.7;
+      }
+      break;
+    }
+
+    case 'bath-game': {
+      const g = v.game;
+      if (!g) break;
+      const using = g.rubbing && g.time - g.rubbing.at < 0.15 ? g.rubbing : null;
+      P.tub.visible = true;
+      T.y = 0.4; // sitting up in the tub
+      T.armL = -1.15;
+      T.armR = 1.15;
+      // Mud shrinks as it is soaped, suds grow, drips hang on until towelled.
+      for (const [zone, parts] of Object.entries(m.bath)) {
+        const state = g.zones[zone];
+        parts.dirt.forEach((spot) => {
+          spot.visible = state.dirt > 0.05;
+          spot.scale.copy(spot.userData.rest).multiplyScalar(0.4 + 0.6 * state.dirt);
+        });
+        parts.foam.forEach((cluster, i) => {
+          cluster.visible = state.foam > 0.05;
+          cluster.scale.setScalar(state.foam * (1 + Math.sin(time * 3 + i) * 0.06));
+        });
+        parts.drops.forEach((drop) => {
+          drop.visible = state.wet > 0.05 && state.foam < 0.05;
+          drop.scale.copy(drop.userData.rest).multiplyScalar(state.wet);
+        });
+      }
+      if (using?.tool === 'shower') {
+        T.eyes = CLOSED;
+        T.headRx = 0.15;
+        T.squash = Math.sin(time * 18) * 0.02;
+        P.shower.forEach((drop, i) => {
+          const p = (time * 1.6 + i / P.shower.length) % 1;
+          show(drop, (i - 3.5) * 0.42, 6.2 - p * 3.6, 0.9, 0.5, 1 - p * 0.5);
+        });
+      } else if (using?.tool === 'soap') {
+        T.eyes = CLOSED; // it tickles
+        T.mouth = 0.6;
+        T.squash = Math.sin(time * 30) * 0.03;
+        if (using.zone === 'head') T.headRz = Math.sin(time * 10) * 0.08;
+      } else if (using?.tool === 'towel') {
+        T.eyes = CLOSED;
+        T.headRy = Math.sin(time * 14) * 0.2;
+      }
+      if (g.clean) {
+        T.y = 0.4 + Math.abs(Math.sin(g.t * 7)) * 0.25;
+        T.armL = -2.6;
+        T.armR = 2.6;
+        T.mouth = 0.9;
+        T.eyes = CLOSED;
+        P.stars.forEach((star, i) => {
+          const a = g.t * 4 + (i * TWO_PI) / 3;
+          show(star, Math.cos(a) * 1.3, 3.2 + Math.sin(g.t * 5 + i) * 0.5, Math.sin(a) * 1.3, 0.5);
+        });
+      }
+      break;
+    }
+
     case 'paint-game': {
       const fx = v.game?.fx;
       // Arms out, so every part is easy to reach.
@@ -1287,6 +1473,7 @@ export function createPetView(container, pet) {
   let ticker = null;
 
   function step(dt, snap = false) {
+    dt = Math.max(0, dt);
     if (dt > 0) ticker?.(dt);
     v.t += dt;
     v.time += dt;
@@ -1325,7 +1512,9 @@ export function createPetView(container, pet) {
   let frames = 0;
   let since = last;
   renderer.setAnimationLoop((now) => {
-    step(Math.min(0.05, (now - last) / 1000));
+    // The first frame's clock can read earlier than the moment the view was
+    // made. Time must never run backwards: the springs would fly apart.
+    step(Math.max(0, Math.min(0.05, (now - last) / 1000)));
     last = now;
     if (++frames === 60) {
       const average = (now - since) / frames;
@@ -1414,8 +1603,11 @@ export function createPetView(container, pet) {
     setLook(x, y) {
       v.look = { x, y };
     },
-    setAccessory(id) {
-      for (const [name, item] of Object.entries(model.accessories)) item.visible = name === id;
+    // What the pet is wearing: { head, eyes, neck }, each an item's id or null.
+    setOutfit(outfit) {
+      for (const [slot, items] of Object.entries(model.wardrobe)) {
+        for (const [id, item] of Object.entries(items)) item.visible = outfit[slot] === id;
+      }
       step(0);
     },
     // What is under this screen point: 'head', 'belly', 'tail', 'feet', a boxing pad ('pad0'…),
